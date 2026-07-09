@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld('yusepe', {
 
   menu: {
     onCloseTile:       (handler) => on('menu:close-tile', handler),
+    onTileAction:      (handler) => on('menu:tile-action', handler),
     onCommandPalette:  (handler) => on('menu:command-palette', handler),
     onAddToSpace:      (handler) => on('menu:add-to-space', handler),
     onNewTerminal:     (handler) => on('menu:new-terminal', handler),

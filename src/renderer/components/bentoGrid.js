@@ -17,7 +17,7 @@ import { bus } from '../core/eventBus.js';
 import { state } from '../core/state.js';
 import { renderTile } from './tile.js';
 import { ProfileManager } from '../core/profileManager.js';
-import { GRID_COLS, findEmptySpot, resolveColGrowth, resolveRowGrowth, moveTileTo } from '../core/layout.js';
+import { GRID_COLS, findEmptySpot, resolveColGrowth, resolveRowGrowth, moveTileTo, findNeighbor } from '../core/layout.js';
 import * as liveTiles from '../core/liveTiles.js';
 import emptyDarkUrl from '../assets/empty-dark.svg';
 import emptyLightUrl from '../assets/empty-light.svg';
@@ -131,6 +131,52 @@ export function focusTileById(tileId) {
   focusTile(tileId);
   document.querySelector(`.tile[data-tile-id="${tileId}"]`)
     ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+}
+
+/** Enfoca el contenido interactivo del tile (terminal/webview) para que las
+ *  teclas siguientes vayan ahí — clave al navegar entre tiles con el teclado. */
+function focusTileContent(tileId) {
+  const node = renderedTiles.get(tileId)?.node;
+  if (!node) return;
+  const target = node.querySelector('.xterm-helper-textarea')
+    || node.querySelector('webview')
+    || node.querySelector('input, textarea, [tabindex]')
+    || node;
+  try { target.focus?.(); } catch { /* noop */ }
+}
+
+/* ===================== Navegación por teclado ===================== */
+
+/** Mueve el foco al tile vecino en la dirección dada (Cmd+Alt+Flecha). */
+export function focusNeighbor(dir) {
+  const tiles = state.profile?.tiles || [];
+  if (!tiles.length) return;
+  if (!focusedTileId || !tiles.find((t) => t.id === focusedTileId)) {
+    focusTileById(tiles[0].id);
+    focusTileContent(tiles[0].id);
+    return;
+  }
+  const nextId = findNeighbor(tiles, focusedTileId, dir);
+  if (nextId) {
+    focusTileById(nextId);
+    focusTileContent(nextId);
+  }
+}
+
+/** Mueve el tile enfocado una celda en la dirección dada (Cmd+Alt+Shift+Flecha). */
+export function moveFocusedTile(dir) {
+  const tiles = state.profile?.tiles || [];
+  const tile = tiles.find((t) => t.id === focusedTileId);
+  if (!tile) return;
+  const dcol = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+  const drow = dir === 'up' ? -1 : dir === 'down' ? 1 : 0;
+  const cs = tile.colSpan || 1;
+  const newCol = Math.max(1, Math.min((tile.col || 1) + dcol, GRID_COLS - cs + 1));
+  const newRow = Math.max(1, (tile.row || 1) + drow);
+  if (newCol === (tile.col || 1) && newRow === (tile.row || 1)) return;
+  moveTileTo(tiles, focusedTileId, newCol, newRow);
+  for (const t of tiles) updateTilePosition(t.id);
+  ProfileManager.saveCurrent().catch((err) => console.error('[bento] kbd move save:', err));
 }
 
 /* ===================== Marca de agua de espacio libre ===================== */

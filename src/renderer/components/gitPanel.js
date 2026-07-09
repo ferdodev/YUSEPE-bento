@@ -14,6 +14,7 @@
 import { h } from '../utils/dom.js';
 import { state } from '../core/state.js';
 import { openModal } from './modal.js';
+import { toast } from './toast.js';
 import { highlightCode } from '../core/codeHighlight.js';
 
 export function openGitPanel() {
@@ -291,19 +292,22 @@ export function openGitPanel() {
       await window.yusepe.git.commit(cwd, messageInput.value.trim());
       messageInput.value = '';
       await refresh();
-    } catch (err) { showError(err); }
+      toast.success('Commit creado');
+    } catch (err) { toast.error(err?.message || String(err)); }
   }
   // Botón de red (fetch/pull/push): deshabilita + muestra "…" mientras
-  // corre y refresca el estado al terminar. Los tres comparten el patrón.
-  async function runNetworkBtn(btn, loadingLabel, fn) {
+  // corre, refresca el estado y avisa por toast (éxito/error). Los tres
+  // comparten el patrón.
+  async function runNetworkBtn(btn, loadingLabel, successMsg, fn) {
     btn.disabled = true;
     const original = btn.textContent;
     btn.textContent = loadingLabel;
     try {
       await fn();
       await refresh();
+      toast.success(successMsg);
     } catch (err) {
-      showError(err);
+      toast.error(err?.message || String(err));
     } finally {
       btn.disabled = false;
       btn.textContent = original;
@@ -311,13 +315,13 @@ export function openGitPanel() {
   }
 
   function doFetch() {
-    return runNetworkBtn(fetchBtn, 'Trayendo…', () => window.yusepe.git.fetch(cwd));
+    return runNetworkBtn(fetchBtn, 'Trayendo…', 'Remoto actualizado', () => window.yusepe.git.fetch(cwd));
   }
   function doPull() {
-    return runNetworkBtn(pullBtn, 'Bajando…', () => window.yusepe.git.pull(cwd));
+    return runNetworkBtn(pullBtn, 'Bajando…', 'Cambios bajados', () => window.yusepe.git.pull(cwd));
   }
   function doPush() {
-    return runNetworkBtn(pushBtn, 'Subiendo…', () => window.yusepe.git.push(cwd));
+    return runNetworkBtn(pushBtn, 'Subiendo…', 'Cambios subidos', () => window.yusepe.git.push(cwd));
   }
 
   function showError(err) {

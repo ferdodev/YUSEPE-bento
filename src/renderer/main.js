@@ -8,11 +8,12 @@
 import { ProfileManager } from './core/profileManager.js';
 import { state } from './core/state.js';
 import { bus } from './core/eventBus.js';
-import { renderBento, closeFocusedTile } from './components/bentoGrid.js';
+import { renderBento, closeFocusedTile, focusNeighbor, moveFocusedTile } from './components/bentoGrid.js';
 import { TileFactory } from './components/tile.js';
 import { openAddToSpace } from './components/addToSpace.js';
 import { openSettings } from './components/settings.js';
 import { openModal, promptModal, confirmModal } from './components/modal.js';
+import { toast } from './components/toast.js';
 import { h } from './utils/dom.js';
 import { svgIcon } from './utils/icons.js';
 import { initTheme } from './core/theme.js';
@@ -265,9 +266,11 @@ async function deleteProfile(profile) {
 /** Exporta un perfil puntual a un .json (diálogo nativo de guardado). */
 async function exportProfile(profile) {
   try {
-    await ProfileManager.export(profile.id);
+    const result = await ProfileManager.export(profile.id);
+    if (result && result.canceled) return;
+    toast.success(`"${profile.name}" exportado`);
   } catch (err) {
-    openModal({ title: 'Error al exportar', body: `${err?.message || err}` });
+    toast.error(`No se pudo exportar: ${err?.message || err}`);
   }
 }
 
@@ -283,12 +286,9 @@ async function importProfile() {
     const result = await ProfileManager.import();
     if (result.canceled) return;
     renderProfileList();
-    openModal({
-      title: 'Workspace importado',
-      body: `"${result.profile.name}" se agregó a tus workspaces.`,
-    });
+    toast.success(`"${result.profile.name}" se agregó a tus workspaces`);
   } catch (err) {
-    openModal({ title: 'Error al importar', body: `${err?.message || err}` });
+    toast.error(`No se pudo importar: ${err?.message || err}`);
   }
 }
 
@@ -376,6 +376,13 @@ window.yusepe.menu.onAddToSpace(() => openAddToSpace());
 window.yusepe.menu.onNewTerminal(() => TileFactory.terminal(state.profile?.cwd));
 window.yusepe.menu.onNewCalc(() => TileFactory.calculator());
 window.yusepe.menu.onSettings(() => openSettings());
+
+// Navegación por teclado del mosaico (Cmd+Alt+Flecha = foco,
+// Cmd+Alt+Shift+Flecha = mover). Ver components/bentoGrid.js.
+window.yusepe.menu.onTileAction(({ type, dir }) => {
+  if (type === 'focus') focusNeighbor(dir);
+  else if (type === 'move') moveFocusedTile(dir);
+});
 
 /* ---------- Command Palette: acciones que necesitan funciones privadas
    de este módulo (crear/exportar/importar workspace) ---------- */

@@ -29,6 +29,9 @@ function setupMenu(win) {
   const send = (ch) => () => {
     if (win && !win.isDestroyed()) win.webContents.send(ch);
   };
+  const sendTile = (type, dir) => () => {
+    if (win && !win.isDestroyed()) win.webContents.send('menu:tile-action', { type, dir });
+  };
 
   const template = [
     ...(isMac ? [{
@@ -55,6 +58,20 @@ function setupMenu(win) {
         { label: 'Nueva terminal', accelerator: 'CmdOrCtrl+T', click: send('menu:new-terminal') },
         { label: 'Nueva calculadora', accelerator: 'CmdOrCtrl+B', click: send('menu:new-calc') },
         { label: 'Configuración', accelerator: 'CmdOrCtrl+,', click: send('menu:settings') },
+      ],
+    },
+    {
+      label: 'Mosaico',
+      submenu: [
+        { label: 'Foco al tile de la izquierda', accelerator: 'CmdOrCtrl+Alt+Left', click: sendTile('focus', 'left') },
+        { label: 'Foco al tile de la derecha', accelerator: 'CmdOrCtrl+Alt+Right', click: sendTile('focus', 'right') },
+        { label: 'Foco al tile de arriba', accelerator: 'CmdOrCtrl+Alt+Up', click: sendTile('focus', 'up') },
+        { label: 'Foco al tile de abajo', accelerator: 'CmdOrCtrl+Alt+Down', click: sendTile('focus', 'down') },
+        { type: 'separator' },
+        { label: 'Mover tile a la izquierda', accelerator: 'CmdOrCtrl+Alt+Shift+Left', click: sendTile('move', 'left') },
+        { label: 'Mover tile a la derecha', accelerator: 'CmdOrCtrl+Alt+Shift+Right', click: sendTile('move', 'right') },
+        { label: 'Mover tile arriba', accelerator: 'CmdOrCtrl+Alt+Shift+Up', click: sendTile('move', 'up') },
+        { label: 'Mover tile abajo', accelerator: 'CmdOrCtrl+Alt+Shift+Down', click: sendTile('move', 'down') },
       ],
     },
     {

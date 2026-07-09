@@ -7,6 +7,7 @@ import {
   resolveRowGrowth,
   resolveRowShrink,
   moveTileTo,
+  findNeighbor,
 } from './layout.js';
 
 describe('findEmptySpot', () => {
@@ -250,5 +251,45 @@ describe('moveTileTo', () => {
     const tiles = [{ id: 'A', col: 1, row: 1, colSpan: 1, rowSpan: 1 }];
     expect(() => moveTileTo(tiles, 'nope', 5, 5)).not.toThrow();
     expect(tiles[0]).toMatchObject({ col: 1, row: 1 });
+  });
+});
+
+describe('findNeighbor', () => {
+  // Layout 2x2:  A B
+  //              C D
+  const grid = [
+    { id: 'A', col: 1, row: 1, colSpan: 6, rowSpan: 3 },
+    { id: 'B', col: 7, row: 1, colSpan: 6, rowSpan: 3 },
+    { id: 'C', col: 1, row: 4, colSpan: 6, rowSpan: 3 },
+    { id: 'D', col: 7, row: 4, colSpan: 6, rowSpan: 3 },
+  ];
+
+  it('encuentra el vecino a la derecha, izquierda, arriba y abajo', () => {
+    expect(findNeighbor(grid, 'A', 'right')).toBe('B');
+    expect(findNeighbor(grid, 'B', 'left')).toBe('A');
+    expect(findNeighbor(grid, 'A', 'down')).toBe('C');
+    expect(findNeighbor(grid, 'C', 'up')).toBe('A');
+  });
+
+  it('devuelve null cuando no hay tile en esa dirección', () => {
+    expect(findNeighbor(grid, 'A', 'left')).toBeNull();
+    expect(findNeighbor(grid, 'A', 'up')).toBeNull();
+    expect(findNeighbor(grid, 'D', 'right')).toBeNull();
+    expect(findNeighbor(grid, 'D', 'down')).toBeNull();
+  });
+
+  it('prefiere el vecino más alineado, no solo el más cercano en línea recta', () => {
+    // A grande a la izquierda; B arriba-derecha, C abajo-derecha bien
+    // alineado con A. Desde A hacia la derecha debe elegir el más alineado.
+    const tiles = [
+      { id: 'A', col: 1, row: 3, colSpan: 6, rowSpan: 2 },
+      { id: 'B', col: 7, row: 1, colSpan: 6, rowSpan: 1 },
+      { id: 'C', col: 7, row: 3, colSpan: 6, rowSpan: 2 },
+    ];
+    expect(findNeighbor(tiles, 'A', 'right')).toBe('C');
+  });
+
+  it('tileId inexistente devuelve null', () => {
+    expect(findNeighbor(grid, 'nope', 'right')).toBeNull();
   });
 });

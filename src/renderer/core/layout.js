@@ -256,6 +256,53 @@ function tryRowSize(tiles, tile, col, row, colSpan, rs) {
   return noOverlapsWith(tiles, overrides) ? pushes : null;
 }
 
+/* ===================== Navegación espacial (teclado) ===================== */
+
+function centerOf(t) {
+  return {
+    x: (t.col || 1) + (t.colSpan || 1) / 2,
+    y: (t.row || 1) + (t.rowSpan || 1) / 2,
+  };
+}
+
+/**
+ * Devuelve el id del tile vecino más cercano en la dirección dada
+ * ('left' | 'right' | 'up' | 'down'), o null si no hay ninguno.
+ *
+ * Heurística tipo tiling WM: entre los tiles que están del lado correcto
+ * (según el centro), elige el de menor "costo" = distancia en el eje
+ * primario + 2× el desalineamiento en el eje perpendicular. Así prioriza
+ * el que está más alineado con el actual, no solo el más cercano en línea
+ * recta. Puro: no toca el DOM (testeable en layout.test.js).
+ */
+export function findNeighbor(tiles, tileId, dir) {
+  const tile = tiles.find((t) => t.id === tileId);
+  if (!tile) return null;
+  const c = centerOf(tile);
+
+  let bestId = null;
+  let bestScore = Infinity;
+  for (const other of tiles) {
+    if (other.id === tileId) continue;
+    const o = centerOf(other);
+    const dx = o.x - c.x;
+    const dy = o.y - c.y;
+
+    let inDir = false;
+    let primary = 0;
+    let perp = 0;
+    if (dir === 'right') { inDir = dx > 0.01; primary = dx; perp = Math.abs(dy); }
+    else if (dir === 'left') { inDir = dx < -0.01; primary = -dx; perp = Math.abs(dy); }
+    else if (dir === 'down') { inDir = dy > 0.01; primary = dy; perp = Math.abs(dx); }
+    else if (dir === 'up') { inDir = dy < -0.01; primary = -dy; perp = Math.abs(dx); }
+    if (!inDir) continue;
+
+    const score = primary + perp * 2;
+    if (score < bestScore) { bestScore = score; bestId = other.id; }
+  }
+  return bestId;
+}
+
 /* ===================== Mover (drag libre) ===================== */
 
 /**

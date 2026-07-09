@@ -206,6 +206,25 @@
     transition: none;
   }
 
+  /* ---- Toasts (notificaciones no-bloqueantes) ---- */
+  .toast-item {
+    animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .toast-item.toast-out {
+    animation: toast-out 180ms ease-in forwards;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(16px) scale(0.98); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  @keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(16px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast-item, .toast-item.toast-out { animation: none; }
+  }
+
   /* Con un wallpaper de workspace activo, las terminales se vuelven
      parcialmente transparentes para dejarlo ver (estilo Warp). Sin
      wallpaper, --term-tile-opacity queda en 1 (sin cambios). */
