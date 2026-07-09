@@ -105,6 +105,10 @@ contextBridge.exposeInMainWorld('yusepe', {
     set: (mode) => ipcRenderer.send('theme:set', mode),
   },
 
+  window: {
+    onFullscreen: (handler) => on('window:fullscreen', handler),
+  },
+
   dialog: {
     pickFolder: () => ipcRenderer.invoke('dialog:pick-folder'),
     pickImage: () => ipcRenderer.invoke('dialog:pick-image'),

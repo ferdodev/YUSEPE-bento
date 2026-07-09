@@ -118,6 +118,12 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
+  // En pantalla completa macOS oculta los traffic lights, así que el
+  // renderer no debe reservar el hueco de la izquierda de la topbar.
+  const sendFullscreen = (v) => mainWindow.webContents.send('window:fullscreen', v);
+  mainWindow.on('enter-full-screen', () => sendFullscreen(true));
+  mainWindow.on('leave-full-screen', () => sendFullscreen(false));
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };

@@ -423,9 +423,13 @@ bus.on('calc:result', ({ value }) => {
     return;
   }
   // Marca la plataforma para el CSS: en macOS reserva el hueco de los
-  // traffic lights de la topbar (titleBarStyle:hiddenInset).
+  // traffic lights de la topbar (titleBarStyle:hiddenInset). En pantalla
+  // completa los semáforos se ocultan, así que se libera ese hueco.
   if (window.yusepe.platform === 'darwin') {
     document.body.classList.add('platform-darwin');
+    window.yusepe.window?.onFullscreen?.((isFs) => {
+      document.body.classList.toggle('is-fullscreen', !!isFs);
+    });
   }
   initTheme();
   initFileTreeSidebar();
