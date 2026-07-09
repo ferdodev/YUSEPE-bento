@@ -16,14 +16,14 @@
     <!-- Topbar -->
     <header
       id="topbar"
-      class="h-12 flex items-center gap-3 px-4 border-b border-line bg-bg-soft/60 backdrop-blur select-none"
+      class="h-12 flex items-center gap-3 px-4 border-b border-line bg-bg-soft/70 backdrop-blur backdrop-saturate-150 select-none"
     >
       <button
         id="btn-back-profiles"
-        class="hidden text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+        class="hidden text-xs px-2.5 py-1.5 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition"
         title="Volver a workspaces"
       >
-        ← Workspaces
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="inline w-3.5 h-3.5 mr-1 align-middle -mt-px"><path d="M15 18l-6-6 6-6"/></svg>Workspaces
       </button>
       <div class="flex items-center gap-2 text-sm">
         <span class="w-2 h-2 rounded-full bg-accent"></span>
@@ -34,60 +34,61 @@
         class="flex items-center gap-1.5 overflow-x-auto max-w-[320px]"
         title="Espacios de trabajo con tiles (terminales/webviews) en segundo plano"
       ></div>
-      <div class="ml-auto flex items-center gap-2">
+      <div class="ml-auto flex items-center gap-1.5">
         <button
           id="btn-toggle-explorer"
           disabled
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
           title="Árbol de archivos"
         >
-          🗂
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         </button>
         <button
           id="btn-git"
           disabled
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
           title="Git"
         >
-          ⎇
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="9" r="2.4"/><path d="M6 8.4v7.2M8.4 6H14a2 2 0 0 1 2 2v.6"/></svg>
         </button>
         <button
           id="btn-agents"
           disabled
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
           title="Agentes"
         >
-          🤖
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4M8 13h.01M16 13h.01"/></svg>
         </button>
         <button
           id="btn-workspace-manager"
           disabled
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
           title="Administrador del workspace"
         >
-          🧰
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         </button>
         <button
           id="btn-toggle-snippets"
           disabled
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
           title="Snippets"
         >
-          {}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><path d="M8 6 4 12l4 6M16 6l4 6-4 6"/></svg>
         </button>
         <button
           id="btn-add-to-space"
           disabled
-          class="text-xs px-3 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-accent px-3 py-1.5 rounded-md hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
         >
-          + Agregar al espacio
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar
         </button>
         <button
           id="btn-settings"
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition"
           title="Configuración"
         >
-          ⚙️
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2 2M17 17l2 2M19.1 4.9l-2 2M7 17l-2 2"/></svg>
         </button>
         <div class="w-px h-5 bg-line mx-1"></div>
         <select
@@ -96,10 +97,10 @@
         ></select>
         <button
           id="btn-new-profile"
-          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition"
           title="Nuevo workspace"
         >
-          +
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4"><path d="M12 5v14M5 12h14"/></svg>
         </button>
       </div>
     </header>
@@ -114,16 +115,18 @@
             <div class="flex items-center gap-2 shrink-0">
               <button
                 id="btn-profile-import"
-                class="text-sm px-3 py-2 rounded-md border border-line hover:bg-bg-elev transition text-fg-soft"
+                class="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-line hover:bg-bg-elev transition text-fg-soft"
                 title="Importar un workspace desde un archivo .json exportado"
               >
-                ⬆ Importar
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4"><path d="M12 15V3M8 7l4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+                Importar
               </button>
               <button
                 id="btn-profile-new"
-                class="text-sm px-4 py-2 rounded-md border border-line hover:bg-bg-elev transition text-fg"
+                class="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-accent px-4 py-2 rounded-md hover:brightness-110 transition"
               >
-                + Nuevo workspace
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M12 5v14M5 12h14"/></svg>
+                Nuevo workspace
               </button>
             </div>
           </div>

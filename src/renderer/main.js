@@ -421,6 +421,11 @@ bus.on('calc:result', ({ value }) => {
       '<p class="text-red-400 text-sm">El preload no cargó.</p>';
     return;
   }
+  // Marca la plataforma para el CSS: en macOS reserva el hueco de los
+  // traffic lights de la topbar (titleBarStyle:hiddenInset).
+  if (window.yusepe.platform === 'darwin') {
+    document.body.classList.add('platform-darwin');
+  }
   initTheme();
   initFileTreeSidebar();
   initSnippetsSidebar();

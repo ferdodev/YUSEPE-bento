@@ -30,13 +30,17 @@ module.exports = {
           subtle: 'var(--color-fg-subtle)',
         },
         accent: {
-          DEFAULT: '#7c5cff',
-          soft: '#a48bff',
+          // Azul de sistema de macOS (#0A84FF dark / #007AFF light),
+          // resuelto por tema vía variables CSS. Ver style.css.
+          DEFAULT: 'var(--color-accent)',
+          soft: 'var(--color-accent-soft)',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+        // San Francisco real del sistema en macOS (system-ui / -apple-system);
+        // fallback razonable en otras plataformas. Sin webfonts.
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        mono: ['ui-monospace', 'SF Mono', 'Menlo', 'Cascadia Code', 'monospace'],
       },
       borderRadius: {
         bento: '18px',

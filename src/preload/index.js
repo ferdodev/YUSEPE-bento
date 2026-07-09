@@ -18,6 +18,10 @@ const on = (channel, handler) => {
 };
 
 contextBridge.exposeInMainWorld('yusepe', {
+  // Plataforma del host — el renderer la usa para decisiones de UI
+  // específicas de macOS (inset de los traffic lights con hiddenInset).
+  platform: process.platform,
+
   profiles: {
     list: () => ipcRenderer.invoke('profiles:list'),
     create: (payload) => ipcRenderer.invoke('profiles:create', payload),

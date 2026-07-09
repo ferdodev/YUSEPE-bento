@@ -86,9 +86,16 @@ function createWindow() {
     height: 900,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#0b0b0d',
+    backgroundColor: '#1c1c1e',
     show: false,
     title: 'YUSEPE Bento',
+    // Chrome nativo de macOS: traffic lights embebidos en la topbar
+    // (estilo Finder/Safari), sin barra de título aparte. En Windows/Linux
+    // Electron ignora estas opciones y usa el frame estándar. El renderer
+    // reserva el espacio de los semáforos vía la clase `platform-darwin`.
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 16 } }
+      : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

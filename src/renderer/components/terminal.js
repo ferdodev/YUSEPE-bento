@@ -22,12 +22,12 @@ function readTermTheme() {
   const style = getComputedStyle(document.documentElement);
   const v = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
   const opacity = parseFloat(v('--term-tile-opacity', '1')) || 1;
-  const bgRgb = v('--color-term-bg-rgb', '11, 11, 13');
+  const bgRgb = v('--color-term-bg-rgb', '22, 22, 25');
   return {
-    background: opacity < 1 ? `rgba(${bgRgb}, ${opacity})` : v('--color-term-bg', '#0b0b0d'),
-    foreground: v('--color-term-fg', '#e4e4e7'),
-    cursor: v('--color-term-cursor', '#7c5cff'),
-    selectionBackground: v('--color-term-selection', '#3b2e7a'),
+    background: opacity < 1 ? `rgba(${bgRgb}, ${opacity})` : v('--color-term-bg', '#161619'),
+    foreground: v('--color-term-fg', '#e6e6ea'),
+    cursor: v('--color-term-cursor', '#0a84ff'),
+    selectionBackground: v('--color-term-selection', '#14375f'),
   };
 }
 

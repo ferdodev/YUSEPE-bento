@@ -7,44 +7,55 @@
   Bento Grid manual: 12 columnas, filas auto, handles de resize/move.
 */
 
+/*
+  Paleta nativa-macOS. Neutros con leve sesgo frío (superficies elevadas
+  tipo systemGray, no negro puro), accent = azul de sistema de Apple.
+  --color-accent-rgb permite componer sombras/hover translúcidos.
+*/
 :root,
 :root[data-theme='dark'] {
-  --color-bg: #0b0b0d;
-  --color-bg-soft: #131318;
-  --color-bg-elev: #1b1b22;
-  --color-line: #26262e;
-  --color-fg: #f4f4f5;
-  --color-fg-soft: #d4d4d8;
-  --color-fg-muted: #a1a1aa;
-  --color-fg-subtle: #71717a;
-  --color-tile-bg: #000000;
-  --color-tile-bg-rgb: 0, 0, 0;
-  --color-tile-border: rgba(255, 255, 255, 0.08);
-  --color-term-bg: #0b0b0d;
-  --color-term-bg-rgb: 11, 11, 13;
-  --color-term-fg: #e4e4e7;
-  --color-term-cursor: #7c5cff;
-  --color-term-selection: #3b2e7a;
+  --color-bg: #1c1c1e;
+  --color-bg-soft: #242428;
+  --color-bg-elev: #2f2f35;
+  --color-line: #3a3a40;
+  --color-fg: #f2f2f5;
+  --color-fg-soft: #d0d0d6;
+  --color-fg-muted: #98989f;
+  --color-fg-subtle: #6a6a72;
+  --color-tile-bg: #29292e;
+  --color-tile-bg-rgb: 41, 41, 46;
+  --color-tile-border: rgba(255, 255, 255, 0.09);
+  --color-term-bg: #161619;
+  --color-term-bg-rgb: 22, 22, 25;
+  --color-term-fg: #e6e6ea;
+  --color-accent: #0a84ff;
+  --color-accent-soft: #409cff;
+  --color-accent-rgb: 10, 132, 255;
+  --color-term-cursor: #0a84ff;
+  --color-term-selection: #14375f;
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --color-bg: #f0f0f2;
-  --color-bg-soft: #ffffff;
-  --color-bg-elev: #e6e6e9;
-  --color-line: #d7d7db;
-  --color-fg: #18181b;
-  --color-fg-soft: #3f3f46;
-  --color-fg-muted: #6b6b73;
-  --color-fg-subtle: #8b8b93;
+  --color-bg: #ececee;
+  --color-bg-soft: #f7f7f8;
+  --color-bg-elev: #ffffff;
+  --color-line: #dcdce0;
+  --color-fg: #1c1c1e;
+  --color-fg-soft: #3a3a3c;
+  --color-fg-muted: #6b6b70;
+  --color-fg-subtle: #9a9aa0;
   --color-tile-bg: #ffffff;
   --color-tile-bg-rgb: 255, 255, 255;
-  --color-tile-border: rgba(0, 0, 0, 0.08);
-  --color-term-bg: #ffffff;
-  --color-term-bg-rgb: 255, 255, 255;
-  --color-term-fg: #18181b;
-  --color-term-cursor: #7c5cff;
-  --color-term-selection: #d6d0ff;
+  --color-tile-border: rgba(0, 0, 0, 0.10);
+  --color-term-bg: #1e1e22;
+  --color-term-bg-rgb: 30, 30, 34;
+  --color-term-fg: #e6e6ea;
+  --color-accent: #007aff;
+  --color-accent-soft: #4a9eff;
+  --color-accent-rgb: 0, 122, 255;
+  --color-term-cursor: #007aff;
+  --color-term-selection: #cfe4ff;
   color-scheme: light;
 }
 
@@ -88,8 +99,28 @@
     position: relative;
     overflow: hidden;
     background: var(--color-tile-bg);
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--color-tile-border);
+  }
+
+  /* ---- Chrome nativo de la ventana ---- */
+  /* La topbar es zona de arrastre de la ventana (como el toolbar de una
+     app nativa de macOS); los controles interactivos se excluyen. */
+  #topbar {
+    -webkit-app-region: drag;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+  #topbar button,
+  #topbar select,
+  #topbar input,
+  #topbar [role='button'] {
+    -webkit-app-region: no-drag;
+  }
+  /* En macOS con titleBarStyle:hiddenInset, los semáforos ocupan el
+     extremo izquierdo de la topbar: se reserva ese espacio. */
+  body.platform-darwin #topbar {
+    padding-left: 80px;
   }
 
   /* Con un wallpaper de workspace activo, las terminales se vuelven
@@ -108,7 +139,7 @@
   }
 
   .tile.focused {
-    box-shadow: inset 0 0 0 2px #7c5cff;
+    box-shadow: inset 0 0 0 2px var(--color-accent);
     z-index: 1;
   }
 
@@ -135,7 +166,7 @@
     justify-content: center;
     font-size: 14px;
     color: rgba(255, 255, 255, 0.25);
-    background: linear-gradient(135deg, rgba(124, 92, 255, 0.12) 0%, transparent 80%);
+    background: linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.14) 0%, transparent 80%);
     border-bottom-right-radius: 6px;
     opacity: 0;
     transition: opacity 0.15s;
@@ -157,7 +188,7 @@
     cursor: ew-resize;
   }
   .tile-handle-r:hover {
-    background: rgba(124, 92, 255, 0.25);
+    background: rgba(var(--color-accent-rgb), 0.28);
   }
 
   /* Bottom edge */
@@ -171,7 +202,7 @@
     cursor: ns-resize;
   }
   .tile-handle-b:hover {
-    background: rgba(124, 92, 255, 0.25);
+    background: rgba(var(--color-accent-rgb), 0.28);
   }
 
   /* Bottom-right corner */
@@ -185,7 +216,7 @@
     cursor: nwse-resize;
   }
   .tile-handle-br:hover {
-    background: rgba(124, 92, 255, 0.3);
+    background: rgba(var(--color-accent-rgb), 0.32);
     border-top-left-radius: 4px;
   }
 
@@ -204,13 +235,13 @@
   .prose-bento h2 { font-size: 1.2em; }
   .prose-bento h3 { font-size: 1.05em; }
   .prose-bento p { margin: 0.5em 0; }
-  .prose-bento a { color: #7c5cff; text-decoration: underline; }
+  .prose-bento a { color: var(--color-accent); text-decoration: underline; }
   .prose-bento code {
     background: var(--color-bg-elev);
     border-radius: 4px;
     padding: 0.1em 0.35em;
     font-size: 0.85em;
-    font-family: 'JetBrains Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   }
   .prose-bento pre {
     background: var(--color-bg-elev);
@@ -245,7 +276,7 @@
     margin: 0;
     overflow-x: auto;
     white-space: pre;
-    font-family: 'JetBrains Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.8rem;
     line-height: 1.55;
   }
