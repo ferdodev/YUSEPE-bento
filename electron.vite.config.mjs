@@ -48,6 +48,11 @@ export default defineConfig({
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
     build: {
+      // Los ~1250 iconos del Material Icon Theme (ver core/fileIcons.js) son
+      // SVGs chicos; con el límite default Vite los inlinearía como data-URI
+      // en el bundle (metiéndolos todos en memoria al arranque). En 0 se
+      // emiten como archivos sueltos y el navegador solo baja el que se usa.
+      assetsInlineLimit: 0,
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),

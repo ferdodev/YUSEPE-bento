@@ -23,6 +23,7 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import { h, debounce } from '../utils/dom.js';
 import { svgIcon } from '../utils/icons.js';
+import { fileIconEl, folderIconEl, setFolderIcon } from '../core/fileIcons.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/eventBus.js';
 import { openModal } from './modal.js';
@@ -144,17 +145,30 @@ function buildChrome() {
   panelEl._rootLabel = rootLabel;
 }
 
+let closeTimer = null;
+
 function openSidebar() {
   if (!panelEl) return;
   isOpen = true;
+  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
   panelEl.classList.remove('hidden');
+  // Fuerza un reflow para que la transición desde translateX(-100%) se
+  // reproduzca en vez de saltar directo al estado final.
+  void panelEl.offsetWidth;
+  panelEl.classList.add('sidebar-open');
   resetToTree();
 }
 
 function closeSidebar() {
   if (!panelEl) return;
   isOpen = false;
-  panelEl.classList.add('hidden');
+  panelEl.classList.remove('sidebar-open');
+  // Espera a que termine el slide-out antes de sacarlo del layout.
+  if (closeTimer) clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => {
+    if (!isOpen) panelEl.classList.add('hidden');
+    closeTimer = null;
+  }, 220);
 }
 
 function currentRoot() {
@@ -193,12 +207,13 @@ async function renderTree() {
 }
 
 function renderEntry(entry, depth) {
-  const arrow = h('span', { class: 'w-3 text-fg-subtle shrink-0 inline-block' }, entry.isDir ? '▸' : '');
+  const arrow = h('span', { class: 'w-3 text-fg-subtle shrink-0 inline-block text-center' }, entry.isDir ? '▸' : '');
+  const icon = entry.isDir ? folderIconEl(entry.name, false) : fileIconEl(entry.name);
   const row = h('div', {
     class: 'flex items-center gap-1 rounded hover:bg-bg-elev cursor-pointer truncate text-xs',
     style: `padding: 3px 6px 3px ${6 + depth * 12}px`,
     title: entry.name,
-  }, [arrow, h('span', { class: 'truncate' }, entry.name)]);
+  }, [arrow, icon, h('span', { class: 'truncate' }, entry.name)]);
 
   const childrenEl = h('div', { class: 'hidden' });
   let loaded = false;
@@ -211,6 +226,7 @@ function renderEntry(entry, depth) {
     }
     expanded = !expanded;
     arrow.textContent = expanded ? '▾' : '▸';
+    setFolderIcon(icon, expanded);
     childrenEl.classList.toggle('hidden', !expanded);
     if (expanded && !loaded) {
       loaded = true;
@@ -263,12 +279,15 @@ async function onSearchInput() {
   }
   for (const entry of results) {
     resultsEl.append(h('div', {
-      class: 'rounded hover:bg-bg-elev cursor-pointer px-2 py-1.5 truncate',
+      class: 'flex items-center gap-2 rounded hover:bg-bg-elev cursor-pointer px-2 py-1.5',
       title: entry.relPath,
       onClick: () => openFileModal(entry),
     }, [
-      h('div', { class: 'truncate' }, entry.name),
-      h('div', { class: 'text-[10px] text-fg-subtle truncate' }, entry.relPath),
+      entry.isDir ? folderIconEl(entry.name, false) : fileIconEl(entry.name),
+      h('div', { class: 'min-w-0 flex-1' }, [
+        h('div', { class: 'truncate' }, entry.name),
+        h('div', { class: 'text-[10px] text-fg-subtle truncate' }, entry.relPath),
+      ]),
     ]));
   }
 }

@@ -153,6 +153,26 @@
     }
   }
 
+  /* ---- Slide-in del panel lateral de archivos ---- */
+  /* Empieza desplazado a la izquierda y translúcido; al abrir se desliza
+     a su lugar con la misma curva ease-out de los modales. El .hidden
+     (display:none) se agrega/saca desde JS coordinado con la transición. */
+  #file-tree-sidebar {
+    transform: translateX(-100%);
+    opacity: 0;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease-out;
+    will-change: transform;
+  }
+  #file-tree-sidebar.sidebar-open {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #file-tree-sidebar {
+      transition: none;
+    }
+  }
+
   /* Con un wallpaper de workspace activo, las terminales se vuelven
      parcialmente transparentes para dejarlo ver (estilo Warp). Sin
      wallpaper, --term-tile-opacity queda en 1 (sin cambios). */

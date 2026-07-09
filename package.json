@@ -23,6 +23,7 @@
     "@xterm/xterm": "^5.5.0",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.5",
+    "material-icon-theme": "^5.36.1",
     "node-pty": "^1.0.0",
     "pdfjs-dist": "^4.10.38"
   },
