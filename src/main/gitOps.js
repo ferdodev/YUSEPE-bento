@@ -2,12 +2,13 @@
  * src/main/gitOps.js
  * --------------------------------------------------------------
  * Operaciones de Git para el panel del cockpit (status, diff,
- * stage/unstage, commit, push). Ejecuta el `git` real instalado del
- * usuario vía child_process (sin dependencias nuevas), siempre en el
- * `cwd` del workspace activo.
+ * stage/unstage, commit, fetch, pull, push, branches). Ejecuta el `git`
+ * real instalado del usuario vía child_process (sin dependencias nuevas),
+ * siempre en el `cwd` del workspace activo.
  *
- * Alcance a propósito acotado a "lo del día a día" (ver status, subir
- * cambios). Para rebase, merges, stash, branches, etc. seguís usando
+ * Alcance a propósito acotado a "lo del día a día" — cubre el ciclo
+ * completo sync (fetch/pull/push) + commit para quien NO tiene lazygit
+ * instalado. Para rebase, merges, stash, cherry-pick, etc. seguís usando
  * lazygit en una terminal — no intenta reemplazarlo.
  * --------------------------------------------------------------
  */
@@ -104,6 +105,18 @@ export async function commit(cwd, message) {
 
 export async function push(cwd) {
   await git(cwd, ['push']);
+}
+
+/** Trae refs del remoto sin fusionar (actualiza ahead/behind). */
+export async function fetch(cwd) {
+  await git(cwd, ['fetch', '--all', '--prune']);
+}
+
+/** Baja y fusiona cambios del upstream. `--ff-only` evita merges sorpresa:
+ *  si el pull no puede ser fast-forward, falla con un mensaje claro en vez
+ *  de dejar un merge a medias (para eso está lazygit/terminal). */
+export async function pull(cwd) {
+  await git(cwd, ['pull', '--ff-only']);
 }
 
 /** Ramas locales y remotas, con cuál está activa (HEAD). */

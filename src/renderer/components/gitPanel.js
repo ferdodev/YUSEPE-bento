@@ -72,8 +72,19 @@ export function openGitPanel() {
     class: 'text-xs px-2.5 py-1.5 rounded-md bg-accent hover:bg-accent-soft text-white transition disabled:opacity-40 disabled:cursor-not-allowed',
     onClick: doCommit,
   }, 'Commit');
+  const fetchBtn = h('button', {
+    class: 'text-xs px-2.5 py-1.5 rounded-md border border-line hover:bg-bg-elev transition',
+    title: 'Traer cambios del remoto sin fusionar (actualiza ↑/↓)',
+    onClick: doFetch,
+  }, '⟲ Fetch');
+  const pullBtn = h('button', {
+    class: 'text-xs px-2.5 py-1.5 rounded-md border border-line hover:bg-bg-elev transition',
+    title: 'Bajar y fusionar cambios del upstream (fast-forward)',
+    onClick: doPull,
+  }, '⤓ Bajar cambios');
   const pushBtn = h('button', {
     class: 'text-xs px-2.5 py-1.5 rounded-md border border-line hover:bg-bg-elev transition',
+    title: 'Subir tus commits al remoto',
     onClick: doPush,
   }, '⇧ Subir cambios');
   commitBtn.disabled = true;
@@ -86,7 +97,11 @@ export function openGitPanel() {
   const footer = h('div', { class: 'mt-3 pt-3 border-t border-line' }, [
     messageInput,
     errorEl,
-    h('div', { class: 'flex gap-2 mt-2' }, [commitBtn, pushBtn]),
+    h('div', { class: 'flex items-center gap-2 mt-2' }, [
+      commitBtn,
+      h('div', { class: 'flex-1' }),
+      fetchBtn, pullBtn, pushBtn,
+    ]),
   ]);
 
   openModal({ title: 'Git', body: h('div', {}, [header, columns, footer]), size: 'lg' });
@@ -278,19 +293,31 @@ export function openGitPanel() {
       await refresh();
     } catch (err) { showError(err); }
   }
-  async function doPush() {
-    pushBtn.disabled = true;
-    const original = pushBtn.textContent;
-    pushBtn.textContent = 'Subiendo…';
+  // Botón de red (fetch/pull/push): deshabilita + muestra "…" mientras
+  // corre y refresca el estado al terminar. Los tres comparten el patrón.
+  async function runNetworkBtn(btn, loadingLabel, fn) {
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = loadingLabel;
     try {
-      await window.yusepe.git.push(cwd);
+      await fn();
       await refresh();
     } catch (err) {
       showError(err);
     } finally {
-      pushBtn.disabled = false;
-      pushBtn.textContent = original;
+      btn.disabled = false;
+      btn.textContent = original;
     }
+  }
+
+  function doFetch() {
+    return runNetworkBtn(fetchBtn, 'Trayendo…', () => window.yusepe.git.fetch(cwd));
+  }
+  function doPull() {
+    return runNetworkBtn(pullBtn, 'Bajando…', () => window.yusepe.git.pull(cwd));
+  }
+  function doPush() {
+    return runNetworkBtn(pushBtn, 'Subiendo…', () => window.yusepe.git.push(cwd));
   }
 
   function showError(err) {

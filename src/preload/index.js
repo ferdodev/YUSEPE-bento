@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('yusepe', {
     discard: (cwd, filePath) => ipcRenderer.invoke('git:discard', { cwd, filePath }),
     commit: (cwd, message) => ipcRenderer.invoke('git:commit', { cwd, message }),
     push: (cwd) => ipcRenderer.invoke('git:push', { cwd }),
+    fetch: (cwd) => ipcRenderer.invoke('git:fetch', { cwd }),
+    pull: (cwd) => ipcRenderer.invoke('git:pull', { cwd }),
     branches: (cwd) => ipcRenderer.invoke('git:branches', { cwd }),
     switchBranch: (cwd, branch) => ipcRenderer.invoke('git:switch-branch', { cwd, branch }),
     createBranch: (cwd, name) => ipcRenderer.invoke('git:create-branch', { cwd, name }),

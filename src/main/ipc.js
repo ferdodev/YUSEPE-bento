@@ -77,6 +77,8 @@ export function registerIpc({ app, profilesDir }) {
   ipcMain.handle('git:discard', (_e, { cwd, filePath }) => gitOps.discardFile(cwd, filePath));
   ipcMain.handle('git:commit', (_e, { cwd, message }) => gitOps.commit(cwd, message));
   ipcMain.handle('git:push', (_e, { cwd }) => gitOps.push(cwd));
+  ipcMain.handle('git:fetch', (_e, { cwd }) => gitOps.fetch(cwd));
+  ipcMain.handle('git:pull', (_e, { cwd }) => gitOps.pull(cwd));
   ipcMain.handle('git:branches', (_e, { cwd }) => gitOps.listBranches(cwd));
   ipcMain.handle('git:switch-branch', (_e, { cwd, branch }) => gitOps.switchBranch(cwd, branch));
   ipcMain.handle('git:create-branch', (_e, { cwd, name }) => gitOps.createBranch(cwd, name));
@@ -189,6 +191,8 @@ export function registerIpc({ app, profilesDir }) {
     ipcMain.removeHandler('git:discard');
     ipcMain.removeHandler('git:commit');
     ipcMain.removeHandler('git:push');
+    ipcMain.removeHandler('git:fetch');
+    ipcMain.removeHandler('git:pull');
     ipcMain.removeHandler('git:branches');
     ipcMain.removeHandler('git:switch-branch');
     ipcMain.removeHandler('git:create-branch');
