@@ -89,10 +89,54 @@ let treeEl = null;
 let resultsEl = null;
 let isOpen = false;
 
+const WIDTH_KEY = 'yusepe:file-tree-width';
+const WIDTH_MIN = 200;
+const WIDTH_MAX = 640;
+const WIDTH_DEFAULT = 288;
+
+function applySavedWidth() {
+  const saved = parseInt(localStorage.getItem(WIDTH_KEY), 10);
+  const w = Number.isFinite(saved) ? Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, saved)) : WIDTH_DEFAULT;
+  panelEl.style.width = w + 'px';
+}
+
+/** Handle de redimensionado en el borde derecho (estilo VSCode). */
+function makeResizeHandle() {
+  const handle = h('div', { class: 'file-tree-resize-handle', title: 'Arrastrá para redimensionar' });
+  let startX = 0;
+  let startW = 0;
+
+  const onMove = (e) => {
+    const w = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, startW + (e.clientX - startX)));
+    panelEl.style.width = w + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.classList.remove('resizing-sidebar');
+    localStorage.setItem(WIDTH_KEY, String(Math.round(panelEl.getBoundingClientRect().width)));
+  };
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = panelEl.getBoundingClientRect().width;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.classList.add('resizing-sidebar');
+  });
+  // Doble click: restablece el ancho por defecto.
+  handle.addEventListener('dblclick', () => {
+    panelEl.style.width = WIDTH_DEFAULT + 'px';
+    localStorage.setItem(WIDTH_KEY, String(WIDTH_DEFAULT));
+  });
+  return handle;
+}
+
 export function initFileTreeSidebar() {
   panelEl = document.getElementById('file-tree-sidebar');
   if (!panelEl) return;
 
+  applySavedWidth();
   buildChrome();
 
   bus.on('profile:loaded', () => { if (isOpen) resetToTree(); });
@@ -138,7 +182,7 @@ function buildChrome() {
   treeEl = h('div', { class: 'flex-1 overflow-y-auto text-xs py-2 px-1' });
   resultsEl = h('div', { class: 'hidden flex-1 overflow-y-auto text-xs py-2 px-1' });
 
-  panelEl.append(headerEl, searchInput, treeEl, resultsEl);
+  panelEl.append(headerEl, searchInput, treeEl, resultsEl, makeResizeHandle());
   panelEl.classList.add('flex', 'flex-col');
 
   // Guarda referencia al label del root para actualizarlo en cada render.

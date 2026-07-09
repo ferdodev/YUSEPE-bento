@@ -173,6 +173,39 @@
     }
   }
 
+  /* ---- Handle de redimensionado del panel de archivos (estilo VSCode) ---- */
+  .file-tree-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 6px;
+    z-index: 5;
+    cursor: col-resize;
+    /* Línea de accent que aparece al hover/arrastrar, pegada al borde. */
+    background: transparent;
+    transition: background 0.12s;
+  }
+  .file-tree-resize-handle:hover,
+  body.resizing-sidebar .file-tree-resize-handle {
+    background: linear-gradient(to right, transparent, rgba(var(--color-accent-rgb), 0.5));
+  }
+  /* Mientras se arrastra: cursor global + sin selección + los webviews
+     dejan de capturar el puntero (si no, el drag se "pega" al pasar sobre
+     un tile de webview, igual que en el drag de tiles). */
+  body.resizing-sidebar {
+    cursor: col-resize;
+    user-select: none;
+  }
+  body.resizing-sidebar webview {
+    pointer-events: none;
+  }
+  /* Sin animación de slide mientras se redimensiona, para que el ancho
+     responda 1:1 al mouse. */
+  body.resizing-sidebar #file-tree-sidebar {
+    transition: none;
+  }
+
   /* Con un wallpaper de workspace activo, las terminales se vuelven
      parcialmente transparentes para dejarlo ver (estilo Warp). Sin
      wallpaper, --term-tile-opacity queda en 1 (sin cambios). */
