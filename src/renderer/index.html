@@ -1,0 +1,198 @@
+<!--
+  src/renderer/index.html
+  --------------------------------------------------------------
+  Shell: topbar + pantalla de perfiles + bento grid.
+  Al abrir la app se muestra la pantalla de perfiles.
+-->
+<!doctype html>
+<html lang="es" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YUSEPE Bento</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="bg-bg text-fg font-sans antialiased h-screen overflow-hidden">
+    <!-- Topbar -->
+    <header
+      id="topbar"
+      class="h-12 flex items-center gap-3 px-4 border-b border-line bg-bg-soft/60 backdrop-blur select-none"
+    >
+      <button
+        id="btn-back-profiles"
+        class="hidden text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+        title="Volver a workspaces"
+      >
+        ← Workspaces
+      </button>
+      <div class="flex items-center gap-2 text-sm">
+        <span class="w-2 h-2 rounded-full bg-accent"></span>
+        <span id="profile-name" class="text-fg">Sin workspace</span>
+      </div>
+      <div
+        id="running-workspaces"
+        class="flex items-center gap-1.5 overflow-x-auto max-w-[320px]"
+        title="Espacios de trabajo con tiles (terminales/webviews) en segundo plano"
+      ></div>
+      <div class="ml-auto flex items-center gap-2">
+        <button
+          id="btn-toggle-explorer"
+          disabled
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Árbol de archivos"
+        >
+          🗂
+        </button>
+        <button
+          id="btn-git"
+          disabled
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Git"
+        >
+          ⎇
+        </button>
+        <button
+          id="btn-agents"
+          disabled
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Agentes"
+        >
+          🤖
+        </button>
+        <button
+          id="btn-workspace-manager"
+          disabled
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Administrador del workspace"
+        >
+          🧰
+        </button>
+        <button
+          id="btn-toggle-snippets"
+          disabled
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Snippets"
+        >
+          {}
+        </button>
+        <button
+          id="btn-add-to-space"
+          disabled
+          class="text-xs px-3 py-1.5 rounded-md border border-line hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        >
+          + Agregar al espacio
+        </button>
+        <button
+          id="btn-settings"
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+          title="Configuración"
+        >
+          ⚙️
+        </button>
+        <div class="w-px h-5 bg-line mx-1"></div>
+        <select
+          id="profile-select"
+          class="text-xs bg-bg-elev border border-line rounded-md px-2 py-1.5"
+        ></select>
+        <button
+          id="btn-new-profile"
+          class="text-xs px-2 py-1.5 rounded-md border border-line hover:bg-bg-elev transition"
+          title="Nuevo workspace"
+        >
+          +
+        </button>
+      </div>
+    </header>
+
+    <!-- Workspace -->
+    <main id="workspace" class="h-[calc(100vh-3rem)] overflow-hidden p-1">
+      <!-- Pantalla de selección de workspaces -->
+      <section id="profile-screen" class="h-full overflow-auto">
+        <div class="w-full max-w-2xl mx-auto p-8">
+          <div class="flex items-center justify-between mb-1">
+            <h1 class="text-2xl font-medium text-fg">Tus workspaces</h1>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                id="btn-profile-import"
+                class="text-sm px-3 py-2 rounded-md border border-line hover:bg-bg-elev transition text-fg-soft"
+                title="Importar un workspace desde un archivo .json exportado"
+              >
+                ⬆ Importar
+              </button>
+              <button
+                id="btn-profile-new"
+                class="text-sm px-4 py-2 rounded-md border border-line hover:bg-bg-elev transition text-fg"
+              >
+                + Nuevo workspace
+              </button>
+            </div>
+          </div>
+          <p class="text-sm text-fg-subtle mb-4">
+            Selecciona un espacio de trabajo para empezar.
+          </p>
+          <input
+            id="profile-search"
+            type="text"
+            placeholder="Buscar workspace…"
+            class="w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+          <div id="profile-list" class="flex flex-col gap-1.5"></div>
+        </div>
+      </section>
+
+      <!-- Bento grid -->
+      <section
+        id="bento"
+        class="hidden bento-grid"
+        aria-label="Bento grid"
+      ></section>
+    </main>
+
+    <!-- Modal genérico -->
+    <div
+      id="modal-root"
+      class="hidden fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm"
+    >
+      <div
+        id="modal-panel"
+        class="bg-bg-soft border border-line rounded-bento shadow-bento w-[520px] max-w-[92vw] p-5"
+      >
+        <div class="flex items-center mb-3">
+          <h3 id="modal-title" class="text-sm font-medium text-fg">Modal</h3>
+          <button
+            id="modal-close"
+            class="ml-auto text-fg-muted hover:text-fg text-sm"
+          >
+            ✕
+          </button>
+        </div>
+        <div id="modal-body" class="text-sm text-fg-soft max-h-[70vh] overflow-auto"></div>
+      </div>
+    </div>
+
+    <!-- Zona de retención: tiles vivos (terminal/webview) de workspaces en
+         background viven acá, ocultos, en vez de destruirse. Ver
+         core/liveTiles.js y bentoGrid.js. -->
+    <div id="tile-holding-area" class="hidden"></div>
+
+    <!-- Panel lateral de árbol de archivos: flota por encima del Bento
+         Grid (no es un tile), se abre/cierra con el botón 🗂 de la
+         topbar. Ver components/fileTreeSidebar.js. -->
+    <aside
+      id="file-tree-sidebar"
+      class="hidden fixed left-0 top-12 bottom-0 w-64 z-40 bg-bg-soft border-r border-line shadow-2xl overflow-y-auto p-2"
+    >
+      <div id="file-tree-content"></div>
+    </aside>
+
+    <!-- Panel lateral de snippets (estilo Termius): flota del lado
+         derecho, se abre/cierra con el botón {} de la topbar. Ver
+         components/snippetsSidebar.js. -->
+    <aside
+      id="snippets-sidebar"
+      class="hidden fixed right-0 top-12 bottom-0 w-72 z-40 bg-bg-soft border-l border-line shadow-2xl overflow-y-auto"
+    ></aside>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Build output
+out
+dist
+release
+.vite
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Testing / coverage
+coverage
+.nyc_output
+
+# Native module build artifacts
+*.node
+build/Release
+
+# Electron-builder
+*.dmg
+*.exe
+*.AppImage

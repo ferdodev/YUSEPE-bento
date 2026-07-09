@@ -1,0 +1,45 @@
+appId: com.yusepe.bento
+productName: YUSEPE Bento
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# node-pty trae binarios nativos (.node) y un ejecutable (spawn-helper) que
+# tienen que existir como archivos reales en disco — no pueden correr desde
+# adentro de un archivo asar.
+asarUnpack:
+  - '**/node_modules/node-pty/**/*'
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+  icon: build/icon.png
+  # Sin cuenta de Apple Developer: build sin firmar. Gatekeeper va a pedir
+  # "click derecho > Abrir" la primera vez que se instale.
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+win:
+  target:
+    - nsis
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: build/icon.png
+  category: Utility
+
+publish: null

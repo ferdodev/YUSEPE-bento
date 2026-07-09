@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  src/renderer/style.css
+  Bento Grid manual: 12 columnas, filas auto, handles de resize/move.
+*/
+
+:root,
+:root[data-theme='dark'] {
+  --color-bg: #0b0b0d;
+  --color-bg-soft: #131318;
+  --color-bg-elev: #1b1b22;
+  --color-line: #26262e;
+  --color-fg: #f4f4f5;
+  --color-fg-soft: #d4d4d8;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-subtle: #71717a;
+  --color-tile-bg: #000000;
+  --color-tile-bg-rgb: 0, 0, 0;
+  --color-tile-border: rgba(255, 255, 255, 0.08);
+  --color-term-bg: #0b0b0d;
+  --color-term-bg-rgb: 11, 11, 13;
+  --color-term-fg: #e4e4e7;
+  --color-term-cursor: #7c5cff;
+  --color-term-selection: #3b2e7a;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f0f0f2;
+  --color-bg-soft: #ffffff;
+  --color-bg-elev: #e6e6e9;
+  --color-line: #d7d7db;
+  --color-fg: #18181b;
+  --color-fg-soft: #3f3f46;
+  --color-fg-muted: #6b6b73;
+  --color-fg-subtle: #8b8b93;
+  --color-tile-bg: #ffffff;
+  --color-tile-bg-rgb: 255, 255, 255;
+  --color-tile-border: rgba(0, 0, 0, 0.08);
+  --color-term-bg: #ffffff;
+  --color-term-bg-rgb: 255, 255, 255;
+  --color-term-fg: #18181b;
+  --color-term-cursor: #7c5cff;
+  --color-term-selection: #d6d0ff;
+  color-scheme: light;
+}
+
+/* Transparencia de las terminales sobre el wallpaper del workspace
+   (ver components/wallpaperPicker.js). 1 = opaco (comportamiento normal
+   sin wallpaper); bentoGrid.js lo pisa por workspace. */
+:root {
+  --term-tile-opacity: 1;
+}
+
+@layer base {
+  html, body, #app { height: 100%; }
+  body { -webkit-font-smoothing: antialiased; }
+}
+
+@layer components {
+  .bento-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(70px, 1fr);
+    gap: 8px;
+    height: 100%;
+    background: var(--color-bg);
+  }
+
+  /* Marca de agua del logo YUSEPE Bento: al ser position:absolute no es un
+     grid-item, así que no consume celdas ni afecta el auto-placement.
+     Los tiles (fondo opaco) la tapan; solo se asoma donde hay espacio libre. */
+  .bento-empty-backdrop {
+    position: absolute;
+    inset: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .tile {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-tile-bg);
+    border-radius: 8px;
+    border: 1px solid var(--color-tile-border);
+  }
+
+  /* Con un wallpaper de workspace activo, las terminales se vuelven
+     parcialmente transparentes para dejarlo ver (estilo Warp). Sin
+     wallpaper, --term-tile-opacity queda en 1 (sin cambios). */
+  .tile[data-kind='terminal'] {
+    background: rgba(var(--color-tile-bg-rgb), var(--term-tile-opacity, 1));
+  }
+
+  /* Mientras se arrastra (mover/redimensionar), los <webview> ignoran
+     el puntero: al ser una superficie de compositor aparte, si el mouse
+     pasa por encima dejan de llegar los mousemove/mouseup al renderer
+     y el drag se queda "pegado". */
+  body.dragging webview {
+    pointer-events: none;
+  }
+
+  .tile.focused {
+    box-shadow: inset 0 0 0 2px #7c5cff;
+    z-index: 1;
+  }
+
+  webview {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: inline-flex;
+  }
+
+  /* ---- Handles de resize y move ---- */
+
+  /* Move: grip en esquina superior izquierda */
+  .tile-handle-move {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    z-index: 20;
+    cursor: move;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.25);
+    background: linear-gradient(135deg, rgba(124, 92, 255, 0.12) 0%, transparent 80%);
+    border-bottom-right-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+  .tile:hover .tile-handle-move,
+  .tile.focused .tile-handle-move {
+    opacity: 1;
+  }
+
+  /* Right edge */
+  .tile-handle-r {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    z-index: 20;
+    cursor: ew-resize;
+  }
+  .tile-handle-r:hover {
+    background: rgba(124, 92, 255, 0.25);
+  }
+
+  /* Bottom edge */
+  .tile-handle-b {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 5px;
+    width: 100%;
+    z-index: 20;
+    cursor: ns-resize;
+  }
+  .tile-handle-b:hover {
+    background: rgba(124, 92, 255, 0.25);
+  }
+
+  /* Bottom-right corner */
+  .tile-handle-br {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    z-index: 21;
+    cursor: nwse-resize;
+  }
+  .tile-handle-br:hover {
+    background: rgba(124, 92, 255, 0.3);
+    border-top-left-radius: 4px;
+  }
+
+  /* ---- Preview de Markdown (tile Explorador) ---- */
+  .prose-bento {
+    color: var(--color-fg-soft);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .prose-bento h1, .prose-bento h2, .prose-bento h3 {
+    color: var(--color-fg);
+    font-weight: 600;
+    margin: 1em 0 0.4em;
+  }
+  .prose-bento h1 { font-size: 1.4em; }
+  .prose-bento h2 { font-size: 1.2em; }
+  .prose-bento h3 { font-size: 1.05em; }
+  .prose-bento p { margin: 0.5em 0; }
+  .prose-bento a { color: #7c5cff; text-decoration: underline; }
+  .prose-bento code {
+    background: var(--color-bg-elev);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    font-size: 0.85em;
+    font-family: 'JetBrains Mono', Menlo, monospace;
+  }
+  .prose-bento pre {
+    background: var(--color-bg-elev);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 0.6em 0.8em;
+    overflow-x: auto;
+    margin: 0.6em 0;
+  }
+  .prose-bento pre code { background: none; padding: 0; }
+  .prose-bento ul, .prose-bento ol { margin: 0.5em 0; padding-left: 1.4em; }
+  .prose-bento blockquote {
+    border-left: 3px solid var(--color-line);
+    margin: 0.6em 0;
+    padding: 0.1em 0 0.1em 0.8em;
+    color: var(--color-fg-muted);
+  }
+  .prose-bento hr { border: none; border-top: 1px solid var(--color-line); margin: 1em 0; }
+  .prose-bento table { border-collapse: collapse; margin: 0.6em 0; }
+  .prose-bento th, .prose-bento td {
+    border: 1px solid var(--color-line);
+    padding: 0.3em 0.6em;
+  }
+  .prose-bento img { max-width: 100%; }
+
+  /* ---- Resaltado de sintaxis (highlight.js) ---- */
+  pre.hljs, .prose-bento pre.hljs {
+    background: var(--color-bg-elev);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 0.8em 1em;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+    font-family: 'JetBrains Mono', Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+  }
+  pre.hljs code { background: none; padding: 0; white-space: pre; }
+  .hljs { color: var(--color-fg-soft); }
+  .hljs-comment, .hljs-quote { color: var(--color-fg-subtle); font-style: italic; }
+  .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-type { color: #c792ea; }
+  .hljs-string, .hljs-attr, .hljs-regexp, .hljs-addition { color: #a3d977; }
+  .hljs-number, .hljs-symbol, .hljs-bullet { color: #f2b366; }
+  .hljs-title, .hljs-name, .hljs-section, .hljs-selector-id { color: #82aaff; font-weight: 600; }
+  .hljs-function .hljs-title, .hljs-title.function_ { color: #82aaff; }
+  .hljs-built_in, .hljs-class .hljs-title { color: #f0796a; }
+  .hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--color-fg); }
+  .hljs-tag { color: var(--color-fg-subtle); }
+  .hljs-deletion { color: #f0796a; }
+  .hljs-emphasis { font-style: italic; }
+  .hljs-strong { font-weight: 700; }
+}

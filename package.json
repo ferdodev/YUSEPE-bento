@@ -1,0 +1,41 @@
+{
+  "name": "yusepe-bento",
+  "version": "0.1.0",
+  "description": "Hub de WebApps modular con Bento Grid dinámico",
+  "main": "out/main/index.js",
+  "author": "Joseph Jauregui",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "electron-rebuild -f -w node-pty || echo 'skip rebuild'",
+    "package": "npm run build && electron-builder",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win",
+    "package:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.5",
+    "node-pty": "^1.0.0",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.9"
+  },
+  "keywords": []
+}
