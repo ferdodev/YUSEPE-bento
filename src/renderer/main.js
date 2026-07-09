@@ -14,6 +14,7 @@ import { openAddToSpace } from './components/addToSpace.js';
 import { openSettings } from './components/settings.js';
 import { openModal, promptModal, confirmModal } from './components/modal.js';
 import { h } from './utils/dom.js';
+import { svgIcon } from './utils/icons.js';
 import { initTheme } from './core/theme.js';
 import * as liveTiles from './core/liveTiles.js';
 import { initFileTreeSidebar, toggleFileTreeSidebar } from './components/fileTreeSidebar.js';
@@ -130,25 +131,25 @@ function createProfileRow(profile) {
       class: 'hidden group-hover:flex gap-1 shrink-0',
     }, [
       h('button', {
-        class: 'text-fg-muted hover:text-fg px-1.5 py-0.5 rounded text-xs',
+        class: 'inline-flex items-center text-fg-muted hover:text-fg px-1.5 py-1 rounded',
         title: 'Carpeta de inicio',
         onClick: (e) => { e.stopPropagation(); changeCwd(profile); },
-      }, '📁'),
+      }, svgIcon('folder', { size: 15 })),
       h('button', {
-        class: 'text-fg-muted hover:text-fg px-1.5 py-0.5 rounded text-xs',
+        class: 'inline-flex items-center text-fg-muted hover:text-fg px-1.5 py-1 rounded',
         title: 'Renombrar',
         onClick: (e) => { e.stopPropagation(); renameProfile(profile); },
-      }, '✎'),
+      }, svgIcon('edit', { size: 15 })),
       h('button', {
-        class: 'text-fg-muted hover:text-fg px-1.5 py-0.5 rounded text-xs',
+        class: 'inline-flex items-center text-fg-muted hover:text-fg px-1.5 py-1 rounded',
         title: 'Exportar a un archivo .json',
         onClick: (e) => { e.stopPropagation(); exportProfile(profile); },
-      }, '⬇'),
+      }, svgIcon('export', { size: 15 })),
       h('button', {
-        class: 'text-fg-muted hover:text-red-400 px-1.5 py-0.5 rounded text-xs',
+        class: 'inline-flex items-center text-fg-muted hover:text-red-400 px-1.5 py-1 rounded',
         title: 'Eliminar',
         onClick: (e) => { e.stopPropagation(); deleteProfile(profile); },
-      }, '🗑'),
+      }, svgIcon('trash', { size: 15 })),
     ]),
   ]);
 }
@@ -314,10 +315,10 @@ function renderRunningWorkspaces() {
       h('span', { class: 'w-1.5 h-1.5 rounded-full bg-accent shrink-0' }),
       h('span', { class: 'truncate max-w-[8rem]' }, name),
       h('button', {
-        class: 'text-fg-subtle hover:text-red-400 transition leading-none px-0.5',
+        class: 'inline-flex items-center text-fg-subtle hover:text-red-400 transition px-0.5',
         title: `Cerrar "${name}" (mata sus terminales/webviews en segundo plano)`,
         onClick: (e) => { e.stopPropagation(); killBackgroundWorkspace(id, name); },
-      }, '✕'),
+      }, svgIcon('close', { size: 13 })),
     ]));
   }
 }

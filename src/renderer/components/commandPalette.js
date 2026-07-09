@@ -14,6 +14,7 @@
  * --------------------------------------------------------------
  */
 import { h } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/eventBus.js';
 import { openModal, closeModal } from './modal.js';
@@ -29,7 +30,7 @@ import { toggleSnippetsSidebar } from './snippetsSidebar.js';
 import { focusTileById } from './bentoGrid.js';
 import { getTheme, applyTheme } from '../core/theme.js';
 
-const TILE_ICON = { terminal: '🖥', webview: '🌐', calculator: '🧮' };
+const TILE_ICON = { terminal: 'terminal', webview: 'webview', calculator: 'calculator' };
 
 function buildActions() {
   const actions = [];
@@ -38,7 +39,7 @@ function buildActions() {
   for (const p of state.profiles) {
     if (p.id === state.activeProfileId) continue;
     actions.push({
-      group: 'Workspaces', icon: '📁', label: p.name, hint: 'Cambiar de workspace',
+      group: 'Workspaces', icon: 'folder', label: p.name, hint: 'Cambiar de workspace',
       run: async () => {
         await ProfileManager.load(p.id);
         const sel = document.getElementById('profile-select');
@@ -50,7 +51,7 @@ function buildActions() {
   if (hasProfile) {
     for (const tile of state.profile.tiles || []) {
       actions.push({
-        group: 'Ir a tile', icon: TILE_ICON[tile.kind] || '◻',
+        group: 'Ir a tile', icon: TILE_ICON[tile.kind] || 'square',
         label: labelFor(tile), hint: `${tile.colSpan || 1}x${tile.rowSpan || 1}`,
         run: () => focusTileById(tile.id),
       });
@@ -58,21 +59,21 @@ function buildActions() {
   }
 
   actions.push(
-    { group: 'Acciones', icon: '🖥', label: 'Nueva terminal', run: () => TileFactory.terminal(state.profile?.cwd), enabled: hasProfile },
-    { group: 'Acciones', icon: '🧮', label: 'Nueva calculadora', run: () => TileFactory.calculator(), enabled: hasProfile },
-    { group: 'Acciones', icon: '➕', label: 'Agregar al espacio…', run: () => openAddToSpace(), enabled: hasProfile },
-    { group: 'Acciones', icon: '🗂', label: 'Árbol de archivos', run: () => toggleFileTreeSidebar(), enabled: hasProfile },
-    { group: 'Acciones', icon: '{}', label: 'Snippets', run: () => toggleSnippetsSidebar(), enabled: hasProfile },
-    { group: 'Acciones', icon: '⎇', label: 'Git', run: () => openGitPanel(), enabled: hasProfile },
-    { group: 'Acciones', icon: '🤖', label: 'Agentes', run: () => openAgentPanel(), enabled: hasProfile },
-    { group: 'Acciones', icon: '🧰', label: 'Administrador del workspace', run: () => openWorkspaceManager(), enabled: hasProfile },
-    { group: 'Acciones', icon: '⬇', label: 'Exportar workspace activo…', run: () => bus.emit('workspace:export-requested'), enabled: hasProfile },
-    { group: 'Acciones', icon: '⬆', label: 'Importar workspace…', run: () => bus.emit('workspace:import-requested') },
-    { group: 'Acciones', icon: '+', label: 'Nuevo workspace…', run: () => bus.emit('workspace:create-requested') },
-    { group: 'Acciones', icon: '⚙️', label: 'Configuración', run: () => openSettings() },
+    { group: 'Acciones', icon: 'terminal', label: 'Nueva terminal', run: () => TileFactory.terminal(state.profile?.cwd), enabled: hasProfile },
+    { group: 'Acciones', icon: 'calculator', label: 'Nueva calculadora', run: () => TileFactory.calculator(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'plus', label: 'Agregar al espacio…', run: () => openAddToSpace(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'folder', label: 'Árbol de archivos', run: () => toggleFileTreeSidebar(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'snippets', label: 'Snippets', run: () => toggleSnippetsSidebar(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'git', label: 'Git', run: () => openGitPanel(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'agents', label: 'Agentes', run: () => openAgentPanel(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'grid', label: 'Administrador del workspace', run: () => openWorkspaceManager(), enabled: hasProfile },
+    { group: 'Acciones', icon: 'export', label: 'Exportar workspace activo…', run: () => bus.emit('workspace:export-requested'), enabled: hasProfile },
+    { group: 'Acciones', icon: 'import', label: 'Importar workspace…', run: () => bus.emit('workspace:import-requested') },
+    { group: 'Acciones', icon: 'plus', label: 'Nuevo workspace…', run: () => bus.emit('workspace:create-requested') },
+    { group: 'Acciones', icon: 'settings', label: 'Configuración', run: () => openSettings() },
     {
       group: 'Acciones',
-      icon: getTheme() === 'dark' ? '☀️' : '🌙',
+      icon: getTheme() === 'dark' ? 'sun' : 'moon',
       label: getTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
       run: () => applyTheme(getTheme() === 'dark' ? 'light' : 'dark'),
     },
@@ -138,7 +139,7 @@ export function openCommandPalette() {
         onClick: () => execute(action),
         onMouseenter: () => { selected = i; render(); },
       }, [
-        h('span', { class: 'w-5 text-center text-xs shrink-0' }, action.icon),
+        h('span', { class: `w-5 flex justify-center shrink-0 ${active ? 'text-fg' : 'text-fg-muted'}` }, svgIcon(action.icon, { size: 15 })),
         h('span', { class: 'flex-1 min-w-0 truncate' }, action.label),
         action.hint ? h('span', { class: 'text-[10px] text-fg-subtle shrink-0' }, action.hint) : null,
       ]));

@@ -10,6 +10,7 @@
  */
 import { marked } from 'marked';
 import { h } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { openModal } from './modal.js';
 import { highlightCode } from '../core/codeHighlight.js';
@@ -39,9 +40,9 @@ export function openAgentPanel() {
   const cwd = state.profile?.cwd;
   if (!cwd) {
     openModal({
-      title: '🤖 Agentes',
+      title: 'Agentes',
       body: h('p', { class: 'text-sm text-fg-soft' },
-        'Este workspace no tiene una carpeta de inicio configurada. Elegí una (📁 en la lista de perfiles) para usar el panel de Agentes.'),
+        'Este workspace no tiene una carpeta de inicio configurada. Elegí una carpeta en la lista de perfiles para usar el panel de Agentes.'),
     });
     return;
   }
@@ -57,7 +58,7 @@ export function openAgentPanel() {
   const subagentsView = h('div', { class: 'h-[52vh] overflow-y-auto hidden' });
 
   openModal({
-    title: '🤖 Agentes',
+    title: 'Agentes',
     body: h('div', {}, [tabs, instructionsView, subagentsView]),
     size: 'lg',
   });
@@ -147,9 +148,9 @@ export function openAgentPanel() {
 
       if (!editing) {
         actions.append(h('button', {
-          class: 'text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
+          class: 'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
           onClick: () => { editing = true; saveError = ''; renderContent(); renderToolbar(); },
-        }, '✎ Editar'));
+        }, [svgIcon('edit', { size: 13 }), h('span', {}, 'Editar')]));
       } else {
         actions.append(
           h('button', {

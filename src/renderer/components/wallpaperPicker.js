@@ -8,6 +8,7 @@
  * --------------------------------------------------------------
  */
 import { h, debounce } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { ProfileManager } from '../core/profileManager.js';
 import { searchPhotos } from '../core/pexels.js';
@@ -24,9 +25,9 @@ export function buildWallpaperSection() {
   const uploadError = h('p', { class: 'text-red-400 text-[10px] mt-1 hidden' });
 
   const uploadBtn = h('button', {
-    class: 'text-xs px-2.5 py-1.5 rounded-md border border-line hover:bg-bg-elev transition',
+    class: 'inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-line hover:bg-bg-elev transition',
     onClick: doUploadLocal,
-  }, '📤 Subir imagen propia');
+  }, [svgIcon('upload', { size: 14 }), h('span', {}, 'Subir imagen propia')]);
 
   const searchInput = h('input', {
     type: 'text',

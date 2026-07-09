@@ -20,9 +20,9 @@ export function openGitPanel() {
   const cwd = state.profile?.cwd;
   if (!cwd) {
     openModal({
-      title: '⎇ Git',
+      title: 'Git',
       body: h('p', { class: 'text-sm text-fg-soft' },
-        'Este workspace no tiene una carpeta de inicio configurada. Elegí una (📁 en la lista de perfiles) para usar el panel de Git.'),
+        'Este workspace no tiene una carpeta de inicio configurada. Elegí una carpeta en la lista de perfiles para usar el panel de Git.'),
     });
     return;
   }

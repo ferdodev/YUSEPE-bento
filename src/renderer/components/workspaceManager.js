@@ -13,6 +13,7 @@
  * --------------------------------------------------------------
  */
 import { h } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { openModal } from './modal.js';
 import { ProfileManager } from '../core/profileManager.js';
@@ -50,7 +51,7 @@ export function labelFor(tile) {
 export function openWorkspaceManager() {
   if (!state.profile) {
     openModal({
-      title: '🧰 Administrador del workspace',
+      title: 'Administrador del workspace',
       body: h('p', { class: 'text-sm text-fg-soft' },
         'Crea o selecciona un workspace primero.'),
     });
@@ -60,7 +61,7 @@ export function openWorkspaceManager() {
   const table = h('table', { class: 'w-full text-xs border-collapse' });
 
   openModal({
-    title: '🧰 Administrador del workspace',
+    title: 'Administrador del workspace',
     body: h('div', {}, [
       h('p', { class: 'text-xs text-fg-subtle mb-3' },
         'Tiles abiertos en este espacio de trabajo.'),
@@ -112,13 +113,13 @@ export function openWorkspaceManager() {
   function actionsCell(tile) {
     const td = h('td', { class: 'py-2 pr-1 whitespace-nowrap text-right' });
     td.append(h('button', {
-      class: 'w-6 h-6 rounded border border-line hover:border-red-400 hover:bg-red-400/10 hover:text-red-400 text-xs leading-none transition',
+      class: 'inline-flex items-center justify-center w-6 h-6 rounded border border-line hover:border-red-400 hover:bg-red-400/10 hover:text-red-400 text-fg-muted transition',
       title: 'Eliminar tile',
       onClick: async () => {
         await ProfileManager.removeTile(tile.id);
         render();
       },
-    }, '🗑'));
+    }, svgIcon('trash', { size: 13 })));
     return td;
   }
 
@@ -158,7 +159,7 @@ export function openWorkspaceManager() {
         class: 'w-full bg-bg-elev border border-line rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent',
       });
       const pinBtn = h('button', {
-        class: 'text-[10px] px-2 py-1 rounded border border-line hover:bg-bg-elev transition shrink-0',
+        class: 'inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-line hover:bg-bg-elev transition shrink-0',
         title: 'Navega ahí y la fija como URL principal del tile (la que carga la próxima vez que se abra)',
         onClick: async () => {
           const normalized = normalizeUrl(input.value);
@@ -172,7 +173,7 @@ export function openWorkspaceManager() {
           const wv = liveWebview(tile.id);
           if (wv) { try { await wv.loadURL(normalized); } catch { /* noop */ } }
         },
-      }, '📌 Usar esta URL');
+      }, [svgIcon('pin', { size: 12 }), h('span', {}, 'Usar esta URL')]);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinBtn.click(); });
       td.append(h('div', { class: 'flex items-center gap-1' }, [input, pinBtn]));
       return td;

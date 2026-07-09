@@ -15,6 +15,7 @@
  * --------------------------------------------------------------
  */
 import { h } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/eventBus.js';
 import { openModal, closeModal, confirmModal } from './modal.js';
@@ -48,13 +49,13 @@ function buildChrome() {
   panelEl.innerHTML = '';
 
   const closeBtn = h('button', {
-    class: 'text-fg-muted hover:text-fg text-sm px-1 shrink-0',
+    class: 'inline-flex items-center justify-center text-fg-muted hover:text-fg px-1 shrink-0',
     title: 'Cerrar snippets',
     onClick: closeSidebar,
-  }, '✕');
+  }, svgIcon('close', { size: 15 }));
 
   const title = h('div', { class: 'text-xs text-fg-soft flex-1 flex items-center gap-1.5' }, [
-    h('span', { class: 'text-accent-soft' }, '{}'),
+    h('span', { class: 'text-accent-soft flex items-center' }, svgIcon('snippets', { size: 14 })),
     h('span', {}, 'Snippets'),
   ]);
 
@@ -127,19 +128,19 @@ function snippetRow(snippet) {
     onClick: () => runSnippet(snippet),
   }, [
     h('div', { class: 'flex items-center gap-1.5' }, [
-      h('span', { class: 'text-accent-soft text-[10px] shrink-0' }, '{}'),
+      h('span', { class: 'text-accent-soft shrink-0 flex items-center' }, svgIcon('snippets', { size: 12 })),
       h('span', { class: 'text-xs text-fg truncate flex-1' }, snippet.name),
       h('div', { class: 'hidden group-hover:flex gap-0.5 shrink-0' }, [
         h('button', {
-          class: 'text-fg-muted hover:text-fg text-[10px] px-1',
+          class: 'inline-flex items-center text-fg-muted hover:text-fg px-1',
           title: 'Editar',
           onClick: (e) => { e.stopPropagation(); openSnippetEditor(snippet); },
-        }, '✎'),
+        }, svgIcon('edit', { size: 13 })),
         h('button', {
-          class: 'text-fg-muted hover:text-red-400 text-[10px] px-1',
+          class: 'inline-flex items-center text-fg-muted hover:text-red-400 px-1',
           title: 'Eliminar',
           onClick: (e) => { e.stopPropagation(); deleteSnippet(snippet); },
-        }, '🗑'),
+        }, svgIcon('trash', { size: 13 })),
       ]),
     ]),
     h('div', { class: 'text-[10px] text-fg-subtle truncate mt-0.5 font-mono' }, `${preview}${extra}`),

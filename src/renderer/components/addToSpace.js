@@ -8,6 +8,7 @@
  * --------------------------------------------------------------
  */
 import { h, debounce } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { openModal, closeModal, promptModal } from './modal.js';
 import { TileFactory } from './tile.js';
 import { state } from '../core/state.js';
@@ -22,7 +23,7 @@ function actionButton({ icon, label, onClick }) {
     class: 'w-full flex items-center gap-2 p-2 rounded-md border border-line hover:bg-bg-elev transition text-left',
     onClick,
   }, [
-    h('span', { class: 'text-lg w-6 text-center' }, icon),
+    h('span', { class: 'w-6 flex justify-center text-fg-muted' }, svgIcon(icon, { size: 17 })),
     h('span', { class: 'text-sm text-fg' }, label),
   ]);
 }
@@ -39,22 +40,22 @@ export function openAddToSpace() {
 
   const actions = h('div', { class: 'grid grid-cols-2 sm:grid-cols-4 gap-1.5' }, [
     actionButton({
-      icon: '🖥',
+      icon: 'terminal',
       label: 'Terminal',
       onClick: async () => { await TileFactory.terminal(currentCwd()); closeModal(); },
     }),
     actionButton({
-      icon: '⚡',
+      icon: 'bolt',
       label: 'Precargada…',
       onClick: promptPreloadedTerminal,
     }),
     actionButton({
-      icon: '🧮',
+      icon: 'calculator',
       label: 'Calculadora',
       onClick: async () => { await TileFactory.calculator(); closeModal(); },
     }),
     actionButton({
-      icon: '🔗',
+      icon: 'link',
       label: 'URL manual…',
       onClick: promptManualUrl,
     }),
@@ -85,7 +86,7 @@ function buildMarketplace() {
 
   const searchInput = h('input', {
     type: 'text',
-    placeholder: '🔍 Buscar apps (ej. "notas", "diagramas")…',
+    placeholder: 'Buscar apps (ej. "notas", "diagramas")…',
     class: 'w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent',
   });
 
@@ -176,7 +177,7 @@ function renderLibraryGrid(container, { query, category }) {
   }
 
   for (const app of apps) {
-    const placeholder = h('span', { class: 'text-xl w-10 h-10 rounded-lg bg-bg-elev flex items-center justify-center shrink-0' }, '◻');
+    const placeholder = h('span', { class: 'w-10 h-10 rounded-lg bg-bg-elev flex items-center justify-center shrink-0 text-fg-subtle' }, svgIcon('webview', { size: 20 }));
     let iconEl = placeholder;
     if (app.badge) {
       // Icono propio: badge cuadrado con emoji o texto en color.

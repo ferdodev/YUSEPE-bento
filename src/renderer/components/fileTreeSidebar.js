@@ -22,6 +22,7 @@ import { marked } from 'marked';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import { h, debounce } from '../utils/dom.js';
+import { svgIcon } from '../utils/icons.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/eventBus.js';
 import { openModal } from './modal.js';
@@ -112,10 +113,10 @@ function buildChrome() {
   panelEl.innerHTML = '';
 
   const closeBtn = h('button', {
-    class: 'text-fg-muted hover:text-fg text-sm px-1 shrink-0',
+    class: 'inline-flex items-center justify-center text-fg-muted hover:text-fg px-1 shrink-0',
     title: 'Cerrar árbol de archivos',
     onClick: closeSidebar,
-  }, '✕');
+  }, svgIcon('close', { size: 15 }));
 
   const rootLabel = h('div', { class: 'text-[10px] text-fg-subtle truncate flex-1 min-w-0' }, '');
 
@@ -282,9 +283,9 @@ async function openFileModal(entry) {
 
   if (IMAGE_RE.test(entry.name) || PDF_RE.test(entry.name)) {
     toolbar.append(h('button', {
-      class: 'text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
+      class: 'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
       onClick: () => window.yusepe.explorer.openInSystem(currentRoot(), entry.relPath),
-    }, '↗ Abrir con la app del sistema'));
+    }, [svgIcon('external', { size: 13 }), h('span', {}, 'Abrir con la app del sistema')]));
     await openMediaPreview(entry, contentArea);
     return;
   }
@@ -301,15 +302,15 @@ async function openFileModal(entry) {
     toolbar.innerHTML = '';
     if (!editing) {
       toolbar.append(h('button', {
-        class: 'text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
+        class: 'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
         onClick: () => { editing = true; saveError = ''; renderView(); renderToolbar(); },
-      }, '✎ Editar'));
+      }, [svgIcon('edit', { size: 13 }), h('span', {}, 'Editar')]));
     } else {
       toolbar.append(
         h('button', {
-          class: 'text-xs px-2.5 py-1 rounded-md bg-accent hover:bg-accent-soft text-white transition',
+          class: 'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-accent hover:bg-accent-soft text-white transition',
           onClick: saveEdit,
-        }, '💾 Guardar'),
+        }, [svgIcon('save', { size: 13 }), h('span', {}, 'Guardar')]),
         h('button', {
           class: 'text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition',
           onClick: () => { editing = false; saveError = ''; renderView(); renderToolbar(); },
