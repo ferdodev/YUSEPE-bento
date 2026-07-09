@@ -89,7 +89,7 @@ export function openGitPanel() {
     h('div', { class: 'flex gap-2 mt-2' }, [commitBtn, pushBtn]),
   ]);
 
-  openModal({ title: '⎇ Git', body: h('div', {}, [header, columns, footer]), size: 'lg' });
+  openModal({ title: 'Git', body: h('div', {}, [header, columns, footer]), size: 'lg' });
 
   messageInput.addEventListener('input', updateCommitBtn);
 
