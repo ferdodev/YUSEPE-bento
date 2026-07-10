@@ -22,6 +22,11 @@ function resolveSafe(root, relPath) {
   return resolved;
 }
 
+/** Ruta absoluta validada dentro del workspace (mismo patrón que explorerFs). */
+export function resolvePath(cwd, relPath) {
+  return resolveSafe(cwd, relPath);
+}
+
 /** Archivos de instrucciones que reconocemos, por orden de relevancia. */
 export const INSTRUCTION_FILES = [
   { id: 'agents', label: 'AGENTS.md', relPath: 'AGENTS.md',

@@ -31,7 +31,25 @@ npm run package:linux    # empaquetar solo Linux (AppImage + deb)
 de toolchain nativo, la app sigue funcionando pero sin terminales hasta que
 se corra `npm run rebuild` a mano.
 
-No hay linter configurado (no ESLint/Prettier en el repo).
+```bash
+npm run lint             # eslint (flat config, ESLint 9) sobre src/ + configs
+npm run lint:fix         # eslint --fix
+npm run format           # prettier --write sobre src/ (opt-in, ver nota)
+npm run format:check     # prettier --check (no corre en CI todavía)
+```
+
+Linter: **ESLint 9** (`eslint.config.mjs`, flat config) con globals por
+dominio (main/preload = Node, renderer = browser) y foco en bugs reales
+(`no-unused-vars`, `no-undef`), no estilo. **Prettier** está configurado
+(`.prettierrc.json`) pero el repo **todavía no fue formateado de una** — por
+eso `format:check` no corre en CI: correr `npm run format` genera un diff
+masivo (44 archivos) que debe ser un commit one-shot aparte antes de
+enforcearlo. `eslint-config-prettier` ya desactiva reglas de estilo que
+chocarían.
+
+CI: `.github/workflows/ci.yml` corre lint + test + build en cada push/PR
+(Node 20, ubuntu). `node-pty` no se necesita compilado para ninguno de los
+tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
 
 **Versiones fijadas a propósito** (no actualizar sin revisar por qué):
 - `electron-builder@24.13.3` — la rama 26.x falla al empaquetar (`ERR_REQUIRE_ESM`
@@ -143,6 +161,7 @@ Electron ni del DOM:
 - `src/renderer/core/liveTiles.test.js` — registro/kill de tiles vivos entre workspaces.
 - `src/renderer/core/eventBus.test.js` — pub/sub, wildcards, resiliencia a errores.
 - `src/main/storage.test.js` — CRUD de perfiles sobre disco real (dir temporal), incluye regresión del bug histórico de índice duplicado.
+- `src/main/pathSafety.test.js` — regresión de seguridad: `resolveSafe` (vía `resolvePath`) en explorerFs **y** agentOps rechaza path traversal (`..`, rutas absolutas, hermanos con prefijo compartido). Misma batería para ambos porque comparten implementación.
 
 ## Notas de empaquetado
 

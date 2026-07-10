@@ -78,7 +78,7 @@ export async function createTerminalTile(tile, profileId) {
       term.open(body);
       fit.fit();
 
-      const { ptyId: id, shell } = await window.yusepe.pty.create({
+      const { ptyId: id } = await window.yusepe.pty.create({
         cols: term.cols,
         rows: term.rows,
         cwd: tile.cwd || undefined,

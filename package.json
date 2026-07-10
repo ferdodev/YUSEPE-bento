@@ -11,6 +11,10 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{js,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{js,css,html}\"",
     "rebuild": "electron-rebuild -f -w node-pty",
     "postinstall": "electron-rebuild -f -w node-pty || echo 'skip rebuild'",
     "package": "npm run build && electron-builder",
@@ -28,12 +32,17 @@
     "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "autoprefixer": "^10.4.20",
     "electron": "^33.0.0",
     "electron-builder": "^24.13.3",
     "electron-rebuild": "^3.2.9",
     "electron-vite": "^2.3.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
     "postcss": "^8.4.47",
+    "prettier": "^3.9.5",
     "tailwindcss": "^3.4.13",
     "vite": "^5.4.8",
     "vitest": "^2.1.9"

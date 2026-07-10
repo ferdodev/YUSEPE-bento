@@ -47,9 +47,6 @@ export function openAgentPanel() {
     return;
   }
 
-  let activeTab = 'instructions';
-  let activeFile = null; // relPath del archivo de instrucciones abierto
-
   const tabInstructionsBtn = h('button', { class: tabClass(true), onClick: () => setTab('instructions') }, 'Instrucciones');
   const tabSubagentsBtn = h('button', { class: tabClass(false), onClick: () => setTab('subagents') }, 'Subagentes');
   const tabs = h('div', { class: 'flex gap-1 mb-3 border-b border-line' }, [tabInstructionsBtn, tabSubagentsBtn]);
@@ -70,7 +67,6 @@ export function openAgentPanel() {
   }
 
   function setTab(tab) {
-    activeTab = tab;
     tabInstructionsBtn.className = tabClass(tab === 'instructions');
     tabSubagentsBtn.className = tabClass(tab === 'subagents');
     instructionsView.classList.toggle('hidden', tab !== 'instructions');
@@ -115,7 +111,6 @@ export function openAgentPanel() {
   }
 
   async function openInstructionFile(f) {
-    activeFile = f;
     editorArea.innerHTML = '';
     editorArea.append(h('p', { class: 'text-fg-subtle text-xs' }, 'Cargando…'));
 
