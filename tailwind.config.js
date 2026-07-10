@@ -32,7 +32,11 @@ module.exports = {
         accent: {
           // Azul de sistema de macOS (#0A84FF dark / #007AFF light),
           // resuelto por tema vía variables CSS. Ver style.css.
-          DEFAULT: 'var(--color-accent)',
+          // Usamos los canales RGB + <alpha-value> (no el hex --color-accent)
+          // para que los modificadores de opacidad de Tailwind funcionen:
+          // `bg-accent/20` sobre un hex genera un color inválido y no pinta.
+          // A opacidad plena da el mismo color (rgb(10,132,255) === #0a84ff).
+          DEFAULT: 'rgb(var(--color-accent-rgb) / <alpha-value>)',
           soft: 'var(--color-accent-soft)',
         },
       },

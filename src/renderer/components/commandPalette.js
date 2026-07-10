@@ -29,6 +29,7 @@ import { toggleFileTreeSidebar } from './fileTreeSidebar.js';
 import { toggleSnippetsSidebar } from './snippetsSidebar.js';
 import { focusTileById } from './bentoGrid.js';
 import { getTheme, applyTheme } from '../core/theme.js';
+import { openShortcutsCheatsheet } from './shortcutsCheatsheet.js';
 
 const TILE_ICON = { terminal: 'terminal', webview: 'webview', calculator: 'calculator' };
 
@@ -71,6 +72,7 @@ function buildActions() {
     { group: 'Acciones', icon: 'import', label: 'Importar workspace…', run: () => bus.emit('workspace:import-requested') },
     { group: 'Acciones', icon: 'plus', label: 'Nuevo workspace…', run: () => bus.emit('workspace:create-requested') },
     { group: 'Acciones', icon: 'settings', label: 'Configuración', run: () => openSettings() },
+    { group: 'Acciones', icon: 'info', label: 'Atajos de teclado', run: () => openShortcutsCheatsheet() },
     {
       group: 'Acciones',
       icon: getTheme() === 'dark' ? 'sun' : 'moon',
@@ -93,6 +95,9 @@ export function openCommandPalette() {
     class: 'w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent',
   });
   const list = h('div', { class: 'mt-2 max-h-[50vh] overflow-y-auto' });
+  let rows = [];
+  // Ver quickOpenFile.js: ignorar el hover mientras se navega con teclado.
+  let usingKeyboard = false;
 
   openModal({ title: '⌘ Command Palette', body: h('div', {}, [input, list]), size: 'md' });
   render();
@@ -107,11 +112,20 @@ export function openCommandPalette() {
     render();
   });
 
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); selected = Math.min(selected + 1, filtered.length - 1); render(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); selected = Math.max(selected - 1, 0); render(); }
+  list.addEventListener('mousemove', () => { usingKeyboard = false; });
+
+  // Listener a nivel document (captura) para que las flechas/Enter funcionen
+  // aunque el input pierda el foco. Se auto-remueve al cerrarse el modal.
+  function onKeyDown(e) {
+    if (!document.body.contains(input)) {
+      document.removeEventListener('keydown', onKeyDown, true);
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
     else if (e.key === 'Enter') { e.preventDefault(); execute(filtered[selected]); }
-  });
+  }
+  document.addEventListener('keydown', onKeyDown, true);
 
   function execute(action) {
     if (!action) return;
@@ -119,8 +133,32 @@ export function openCommandPalette() {
     action.run();
   }
 
+  const rowClass = (active) =>
+    `flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition ${
+      active ? 'bg-accent/20 text-fg' : 'text-fg-soft hover:bg-bg-elev'
+    }`;
+
+  /** Mueve la selección sin reconstruir la lista (sólo actualiza clases). */
+  function moveSelection(delta) {
+    if (!filtered.length) return;
+    usingKeyboard = true;
+    selected = Math.max(0, Math.min(selected + delta, filtered.length - 1));
+    applyActive(true);
+  }
+
+  /** Refleja `selected` en las filas ya montadas — nunca reemplaza nodos. */
+  function applyActive(scroll = false) {
+    rows.forEach((row, i) => {
+      row.className = rowClass(i === selected);
+      const iconEl = row.firstChild;
+      if (iconEl) iconEl.className = `w-5 flex justify-center shrink-0 ${i === selected ? 'text-fg' : 'text-fg-muted'}`;
+    });
+    if (scroll && rows[selected]) rows[selected].scrollIntoView({ block: 'nearest' });
+  }
+
   function render() {
     list.innerHTML = '';
+    rows = [];
     if (!filtered.length) {
       list.append(h('p', { class: 'text-fg-subtle text-xs py-4 text-center' }, 'Sin resultados.'));
       return;
@@ -132,17 +170,20 @@ export function openCommandPalette() {
         list.append(h('p', { class: 'text-[10px] text-fg-subtle uppercase tracking-wide px-1 mt-2 mb-1 first:mt-0' }, action.group));
       }
       const active = i === selected;
-      list.append(h('div', {
-        class: `flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition ${
-          active ? 'bg-accent/20 text-fg' : 'text-fg-soft hover:bg-bg-elev'
-        }`,
+      // onMouseenter sólo actualiza la selección; NO reconstruye la lista (si
+      // no, el reemplazo de nodos bajo el cursor dispara mouseenter en cadena
+      // y se come los clicks / pisa las flechas).
+      const row = h('div', {
+        class: rowClass(active),
         onClick: () => execute(action),
-        onMouseenter: () => { selected = i; render(); },
+        onMouseenter: () => { if (usingKeyboard) return; selected = i; applyActive(); },
       }, [
         h('span', { class: `w-5 flex justify-center shrink-0 ${active ? 'text-fg' : 'text-fg-muted'}` }, svgIcon(action.icon, { size: 15 })),
         h('span', { class: 'flex-1 min-w-0 truncate' }, action.label),
         action.hint ? h('span', { class: 'text-[10px] text-fg-subtle shrink-0' }, action.hint) : null,
-      ]));
+      ]);
+      rows.push(row);
+      list.append(row);
     });
   }
 }

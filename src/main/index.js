@@ -32,6 +32,9 @@ function setupMenu(win) {
   const sendTile = (type, dir) => () => {
     if (win && !win.isDestroyed()) win.webContents.send('menu:tile-action', { type, dir });
   };
+  const sendWorkspace = (index) => () => {
+    if (win && !win.isDestroyed()) win.webContents.send('menu:switch-workspace', index);
+  };
 
   const template = [
     ...(isMac ? [{
@@ -53,12 +56,23 @@ function setupMenu(win) {
       submenu: [
         { label: 'Cerrar tile', accelerator: 'CmdOrCtrl+W', click: send('menu:close-tile') },
         { type: 'separator' },
-        { label: 'Command Palette', accelerator: 'CmdOrCtrl+P', click: send('menu:command-palette') },
+        { label: 'Ir a archivo…', accelerator: 'CmdOrCtrl+P', click: send('menu:quick-open-file') },
+        { label: 'Command Palette', accelerator: 'CmdOrCtrl+Shift+P', click: send('menu:command-palette') },
         { label: 'Agregar al espacio', accelerator: 'CmdOrCtrl+K', click: send('menu:add-to-space') },
         { label: 'Nueva terminal', accelerator: 'CmdOrCtrl+T', click: send('menu:new-terminal') },
         { label: 'Nueva calculadora', accelerator: 'CmdOrCtrl+B', click: send('menu:new-calc') },
         { label: 'Configuración', accelerator: 'CmdOrCtrl+,', click: send('menu:settings') },
+        { type: 'separator' },
+        { label: 'Atajos de teclado', accelerator: 'CmdOrCtrl+/', click: send('menu:shortcuts') },
       ],
+    },
+    {
+      label: 'Espacios',
+      submenu: Array.from({ length: 9 }, (_, i) => ({
+        label: `Ir al espacio ${i + 1}`,
+        accelerator: `CmdOrCtrl+${i + 1}`,
+        click: sendWorkspace(i),
+      })),
     },
     {
       label: 'Mosaico',

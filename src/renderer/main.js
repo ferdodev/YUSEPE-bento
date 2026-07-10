@@ -23,6 +23,8 @@ import { openGitPanel } from './components/gitPanel.js';
 import { openAgentPanel } from './components/agentPanel.js';
 import { openWorkspaceManager } from './components/workspaceManager.js';
 import { openCommandPalette } from './components/commandPalette.js';
+import { openQuickOpenFile } from './components/quickOpenFile.js';
+import { openShortcutsCheatsheet } from './components/shortcutsCheatsheet.js';
 import { initSnippetsSidebar, toggleSnippetsSidebar } from './components/snippetsSidebar.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -337,15 +339,20 @@ async function killBackgroundWorkspace(profileId, name) {
 
 /* ---------- Event handlers ---------- */
 
-profileSelect.addEventListener('change', async (e) => {
+async function activateProfile(id) {
+  await ProfileManager.load(id);
+  profileName.textContent = state.profile.name;
+  profileSelect.value = id;
+  showView();
+}
+
+profileSelect.addEventListener('change', (e) => {
   const id = e.target.value;
   if (!id) {
     ProfileManager.clear();
     return;
   }
-  await ProfileManager.load(id);
-  profileName.textContent = state.profile.name;
-  showView();
+  activateProfile(id);
 });
 
 $('#btn-new-profile').addEventListener('click', createNewProfile);
@@ -372,6 +379,12 @@ $('#btn-toggle-snippets').addEventListener('click', toggleSnippetsSidebar);
 
 window.yusepe.menu.onCloseTile(() => closeFocusedTile());
 window.yusepe.menu.onCommandPalette(() => openCommandPalette());
+window.yusepe.menu.onQuickOpenFile(() => openQuickOpenFile());
+window.yusepe.menu.onShortcuts(() => openShortcutsCheatsheet());
+window.yusepe.menu.onSwitchWorkspace((index) => {
+  const p = state.profiles[index];
+  if (p && p.id !== state.activeProfileId) activateProfile(p.id);
+});
 window.yusepe.menu.onAddToSpace(() => openAddToSpace());
 window.yusepe.menu.onNewTerminal(() => TileFactory.terminal(state.profile?.cwd));
 window.yusepe.menu.onNewCalc(() => TileFactory.calculator());
@@ -382,6 +395,22 @@ window.yusepe.menu.onSettings(() => openSettings());
 window.yusepe.menu.onTileAction(({ type, dir }) => {
   if (type === 'focus') focusNeighbor(dir);
   else if (type === 'move') moveFocusedTile(dir);
+});
+
+// `?` abre el cheatsheet de atajos — salvo que estés tipeando en un campo
+// o ya haya un modal abierto (para no pisar su Escape). Los `<webview>`
+// corren en otro contexto, así que sus teclas no llegan acá.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey) return;
+  const t = e.target;
+  const editable =
+    t && (t.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+  if (editable) return;
+  const modalRoot = document.getElementById('modal-root');
+  if (modalRoot && !modalRoot.classList.contains('hidden')) return;
+  e.preventDefault();
+  openShortcutsCheatsheet();
 });
 
 /* ---------- Command Palette: acciones que necesitan funciones privadas

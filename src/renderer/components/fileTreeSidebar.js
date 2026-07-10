@@ -215,7 +215,7 @@ function closeSidebar() {
   }, 220);
 }
 
-function currentRoot() {
+export function currentRoot() {
   return state.profile?.cwd || null;
 }
 
@@ -338,7 +338,7 @@ async function onSearchInput() {
 
 /* ===================== Preview en modal (view + edición) ===================== */
 
-async function openFileModal(entry) {
+export async function openFileModal(entry) {
   const toolbar = h('div', { class: 'flex items-center gap-2 mb-2 min-h-[1.75rem]' });
   const contentArea = h('div', {}, [h('p', { class: 'text-fg-subtle text-xs' }, 'Cargando…')]);
   const body = h('div', {}, [toolbar, contentArea]);
