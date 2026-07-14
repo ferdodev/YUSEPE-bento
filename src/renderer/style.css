@@ -84,15 +84,90 @@
 
   /* Marca de agua del logo YUSEPE Bento: al ser position:absolute no es un
      grid-item, así que no consume celdas ni afecta el auto-placement.
-     Los tiles (fondo opaco) la tapan; solo se asoma donde hay espacio libre. */
+     Los tiles (fondo opaco) la tapan; solo se asoma donde hay espacio libre.
+     Monocromo vía currentColor (var --color-fg) + opacidad baja → "ghost"
+     sutil estilo VSCode/macOS, adaptándose a dark y light sin imágenes. */
   .bento-empty-backdrop {
     position: absolute;
     inset: 0;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-fg);
     pointer-events: none;
+  }
+
+  .bento-empty-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+  }
+
+  /* Glyph + wordmark: watermark sutil "ghost" (solo el mark va tenue; los
+     comandos de abajo quedan legibles). */
+  .bento-empty-mark {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    opacity: 0.07;
+  }
+
+  .bento-empty-mark svg {
+    width: 116px;
+    height: 116px;
+  }
+
+  .bento-empty-mark span {
+    font-size: 30px;
+    font-weight: 500;
+    letter-spacing: 0.38em;
+    /* compensa el tracking para que quede ópticamente centrado */
+    text-indent: 0.38em;
+    text-transform: uppercase;
+  }
+
+  /* Comandos básicos (estilo welcome de VSCode): etiqueta a la izquierda,
+     teclas a la derecha. Solo se muestran con el workspace vacío. */
+  .bento-empty-cmds {
+    display: none;
+    grid-template-columns: auto auto;
+    column-gap: 28px;
+    row-gap: 13px;
+    align-items: center;
+  }
+
+  .bento-empty-backdrop.is-welcome .bento-empty-cmds {
+    display: grid;
+  }
+
+  .bento-empty-cmd-label {
+    font-size: 13px;
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+  }
+
+  .bento-kbd {
+    display: inline-flex;
+    gap: 5px;
+    justify-self: end;
+  }
+
+  .bento-kbd kbd {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--color-fg-muted);
+    background: var(--color-bg-elev);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
   }
 
   .tile {

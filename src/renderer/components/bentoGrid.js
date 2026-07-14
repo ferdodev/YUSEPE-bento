@@ -19,8 +19,6 @@ import { renderTile } from './tile.js';
 import { ProfileManager } from '../core/profileManager.js';
 import { GRID_COLS, findEmptySpot, resolveColGrowth, resolveRowGrowth, moveTileTo, findNeighbor } from '../core/layout.js';
 import * as liveTiles from '../core/liveTiles.js';
-import emptyDarkUrl from '../assets/empty-dark.svg';
-import emptyLightUrl from '../assets/empty-light.svg';
 
 const GAP = 8;
 const MIN_ROW_PX = 70;
@@ -185,25 +183,62 @@ export function moveFocusedTile(dir) {
 // el logo solo se asoma en las celdas realmente libres, sean todas (perfil
 // vacío) o solo el hueco que sobra junto a otros tiles.
 
-function emptyStateUrl() {
-  return document.documentElement.getAttribute('data-theme') === 'light' ? emptyLightUrl : emptyDarkUrl;
+// Comandos básicos que se muestran en el empty-state (estilo welcome de
+// VSCode). Las teclas se renderizan según la plataforma: símbolos de macOS
+// (⌘⇧⌥⌃) o texto (Ctrl/Shift/Alt). Deben coincidir con los accelerators
+// definidos en src/main/index.js.
+const IS_MAC = window.yusepe?.platform === 'darwin';
+
+// Orden canónico de modificadores: Control–Option–Shift–Command (macOS HIG)
+// / Ctrl–Shift–Alt (Windows/Linux).
+function shortcutKeys({ mod, shift, alt, key }) {
+  const out = [];
+  if (IS_MAC) {
+    if (alt) out.push('⌥');
+    if (shift) out.push('⇧');
+    if (mod) out.push('⌘');
+  } else {
+    if (mod) out.push('Ctrl');
+    if (shift) out.push('Shift');
+    if (alt) out.push('Alt');
+  }
+  out.push(key);
+  return out;
 }
 
+const EMPTY_COMMANDS = [
+  { label: 'Agregar app', spec: { mod: true, key: 'K' } },
+  { label: 'Paleta de comandos', spec: { mod: true, shift: true, key: 'P' } },
+  { label: 'Ir a archivo', spec: { mod: true, key: 'P' } },
+  { label: 'Atajos de teclado', spec: { mod: true, key: '/' } },
+];
+
+function commandsHTML() {
+  return EMPTY_COMMANDS.map(({ label, spec }) => {
+    const keys = shortcutKeys(spec).map((k) => `<kbd>${k}</kbd>`).join('');
+    return `<span class="bento-empty-cmd-label">${label}</span>` +
+      `<span class="bento-kbd">${keys}</span>`;
+  }).join('');
+}
+
+// Glyph "bento" vectorial (tres compartimentos redondeados: uno alto a la
+// izquierda, dos apilados a la derecha) + wordmark + comandos básicos.
+// Monocromo vía currentColor → hereda el color del tema (dark y light).
 const emptyBackdrop = document.createElement('div');
 emptyBackdrop.className = 'bento-empty-backdrop';
-emptyBackdrop.style.backgroundImage = `url(${emptyStateUrl()})`;
+emptyBackdrop.innerHTML = `
+  <div class="bento-empty-inner">
+    <div class="bento-empty-mark">
+      <svg viewBox="0 0 120 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="14" y="20" width="46" height="80" rx="11"/>
+        <rect x="68" y="20" width="38" height="37" rx="11"/>
+        <rect x="68" y="63" width="38" height="37" rx="11"/>
+      </svg>
+      <span>Bento</span>
+    </div>
+    <div class="bento-empty-cmds">${commandsHTML()}</div>
+  </div>`;
 grid.appendChild(emptyBackdrop);
-
-const emptyHint = document.createElement('div');
-emptyHint.className =
-  'absolute bottom-6 left-0 right-0 text-center text-xs text-fg-subtle pointer-events-none';
-emptyHint.textContent = 'Cmd/Ctrl+K para añadir tu primera app';
-emptyHint.classList.add('hidden');
-grid.appendChild(emptyHint);
-
-bus.on('theme:changed', () => {
-  emptyBackdrop.style.backgroundImage = `url(${emptyStateUrl()})`;
-});
 
 /* ===================== Wallpaper por workspace ===================== */
 // Fondo de pantalla personalizado (Pexels) + transparencia de las
@@ -446,12 +481,12 @@ export async function renderBento() {
     grid.classList.remove('hidden');
     grid.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
     grid.style.gridAutoRows = `minmax(${MIN_ROW_PX}px, 1fr)`;
-    emptyHint.classList.remove('hidden');
+    emptyBackdrop.classList.add('is-welcome');
     focusedTileId = null;
     return;
   }
 
-  emptyHint.classList.add('hidden');
+  emptyBackdrop.classList.remove('is-welcome');
 
   // Auto-posicionar tiles sin col/row
   const positionsChanged = ensurePositions(profile.tiles);
