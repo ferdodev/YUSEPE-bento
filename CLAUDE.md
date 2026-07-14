@@ -166,7 +166,7 @@ Electron ni del DOM:
 - `src/renderer/core/eventBus.test.js` — pub/sub, wildcards, resiliencia a errores.
 - `src/main/storage.test.js` — CRUD de perfiles sobre disco real (dir temporal), incluye regresión del bug histórico de índice duplicado.
 - `src/main/pathSafety.test.js` — regresión de seguridad: `resolveSafe` (vía `resolvePath`) en explorerFs **y** agentOps rechaza path traversal (`..`, rutas absolutas, hermanos con prefijo compartido). Misma batería para ambos porque comparten implementación.
-- `src/main/explorerFs.test.js` — escrituras del explorador sobre disco real: `createEntry`, `renameEntry`, `duplicateEntry`, `resolveEntryPath`. La regresión clave es que ninguna pise trabajo del usuario en silencio (`fs.rename` sí lo haría).
+- `src/main/explorerFs.test.js` — escrituras del explorador sobre disco real: `createEntry`, `renameEntry`, `duplicateEntry`, `resolveEntryPath`. La regresión clave es que ninguna pise trabajo del usuario en silencio (`fs.rename` sí lo haría). Cubre además que `searchFiles` encuentre dotfiles/dotfolders: **el explorador muestra todos los archivos del proyecto a propósito** (decisión de producto), así que el buscador no debe esconder nada — lo único que no se recorre es `SEARCH_IGNORE`, que filtra por carpeta concreta (`.git`, `node_modules`, …), nunca por "empieza con punto".
 
 ## Notas de empaquetado
 

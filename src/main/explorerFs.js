@@ -75,6 +75,12 @@ const SEARCH_SCAN_LIMIT = 20_000; // tope de entradas visitadas, por si algún i
  * Salta carpetas ruidosas típicas (node_modules, .git, etc.) y corta en
  * `SEARCH_RESULT_LIMIT` resultados / `SEARCH_SCAN_LIMIT` entradas visitadas
  * para no colgarse en árboles enormes.
+ *
+ * Los dotfiles y dotfolders SÍ se buscan (`.gitignore`, `.claude/…`): el
+ * árbol los muestra, así que esconderlos del buscador era incoherente — el
+ * usuario ve todos los archivos de su proyecto y debe poder saltar a
+ * cualquiera. Lo único que no se recorre es `SEARCH_IGNORE`, que filtra por
+ * carpeta concreta (incluida `.git`) y no por "empieza con punto".
  */
 export async function searchFiles(root, query) {
   const resolvedRoot = path.resolve(root);
@@ -97,7 +103,6 @@ export async function searchFiles(root, query) {
     for (const e of entries) {
       if (results.length >= SEARCH_RESULT_LIMIT || scanned >= SEARCH_SCAN_LIMIT) break;
       scanned++;
-      if (e.name.startsWith('.') && e.name !== '.env') continue;
 
       const relPath = relDir === '.' ? e.name : path.join(relDir, e.name);
       if (e.isDirectory()) {

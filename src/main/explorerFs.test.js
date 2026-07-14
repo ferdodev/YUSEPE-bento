@@ -27,7 +27,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { createEntry, duplicateEntry, renameEntry, resolveEntryPath } from './explorerFs.js';
+import { createEntry, duplicateEntry, renameEntry, resolveEntryPath, searchFiles } from './explorerFs.js';
 
 let root;
 
@@ -191,6 +191,56 @@ describe('renameEntry', () => {
 
   it('rechaza renombrar la raíz del workspace', async () => {
     await expect(renameEntry(root, '.', 'otro')).rejects.toThrow(/raíz del workspace/i);
+  });
+});
+
+describe('searchFiles — dotfiles y dotfolders', () => {
+  // Decisión de producto: el árbol muestra TODOS los archivos del proyecto,
+  // así que el buscador (y el ⌘P, que usa esto mismo) tiene que poder
+  // encontrarlos. Antes se salteaba todo lo que empezara con punto, con una
+  // excepción a mano para `.env`. Estos tests fijan que no vuelva.
+  beforeEach(async () => {
+    await createEntry(root, '.gitignore', false);
+    await createEntry(root, '.env', false);
+    await createEntry(root, '.claude/settings.json', false);
+    await createEntry(root, '.claude/hooks/pre-commit.js', false);
+    await createEntry(root, 'src/normal.js', false);
+  });
+
+  it('encuentra un dotfile de la raíz', async () => {
+    const results = await searchFiles(root, 'gitignore');
+    expect(results.map((r) => r.name)).toContain('.gitignore');
+  });
+
+  it('encuentra .env (antes era la única excepción hardcodeada)', async () => {
+    const results = await searchFiles(root, 'env');
+    expect(results.map((r) => r.name)).toContain('.env');
+  });
+
+  it('baja dentro de un dotfolder', async () => {
+    const results = await searchFiles(root, 'settings');
+    expect(results.map((r) => r.relPath)).toContain(path.join('.claude', 'settings.json'));
+  });
+
+  it('baja a dotfolders anidados', async () => {
+    const results = await searchFiles(root, 'pre-commit');
+    expect(results.map((r) => r.relPath)).toContain(path.join('.claude', 'hooks', 'pre-commit.js'));
+  });
+
+  it('sigue sin recorrer las carpetas de SEARCH_IGNORE (.git, node_modules)', async () => {
+    // Mismo nombre adentro y afuera: solo debe aparecer el de afuera.
+    await createEntry(root, '.git/objects/colgado.js', false);
+    await createEntry(root, 'node_modules/paquete/colgado.js', false);
+    await createEntry(root, 'colgado.js', false);
+
+    const results = await searchFiles(root, 'colgado');
+
+    expect(results.map((r) => r.relPath)).toEqual(['colgado.js']);
+  });
+
+  it('no devuelve carpetas, solo archivos', async () => {
+    const results = await searchFiles(root, 'claude');
+    expect(results).toEqual([]);
   });
 });
 
