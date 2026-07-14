@@ -9,6 +9,7 @@
  */
 import { h, debounce } from '../utils/dom.js';
 import { svgIcon } from '../utils/icons.js';
+import { fileIconEl } from '../core/fileIcons.js';
 import { openModal, closeModal, promptModal } from './modal.js';
 import { TileFactory } from './tile.js';
 import { state } from '../core/state.js';
@@ -38,7 +39,7 @@ export function openAddToSpace() {
     return;
   }
 
-  const actions = h('div', { class: 'grid grid-cols-2 sm:grid-cols-4 gap-1.5' }, [
+  const actions = h('div', { class: 'grid grid-cols-2 sm:grid-cols-5 gap-1.5' }, [
     actionButton({
       icon: 'terminal',
       label: 'Terminal',
@@ -58,6 +59,11 @@ export function openAddToSpace() {
       icon: 'link',
       label: 'URL manual…',
       onClick: promptManualUrl,
+    }),
+    actionButton({
+      icon: 'pin',
+      label: 'Fijar archivo…',
+      onClick: promptPinFile,
     }),
   ]);
 
@@ -208,6 +214,73 @@ function renderLibraryGrid(container, { query, category }) {
       app.description ? h('p', { class: 'text-[11px] text-fg-subtle leading-snug line-clamp-2' }, app.description) : null,
     ]));
   }
+}
+
+/**
+ * Picker para fijar un archivo del workspace como tile. Busca por nombre
+ * con la misma búsqueda recursiva del explorador (window.yusepe.explorer
+ * .search), que devuelve solo archivos — no se fijan carpetas.
+ */
+function promptPinFile() {
+  closeModal();
+
+  const input = h('input', {
+    type: 'text',
+    placeholder: 'Buscar archivo por nombre…',
+    class: 'w-full bg-bg-elev border border-line rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent',
+  });
+  const results = h('div', { class: 'mt-2 max-h-[45vh] overflow-y-auto' });
+
+  const hint = (msg) => {
+    results.innerHTML = '';
+    results.append(h('p', { class: 'text-fg-subtle text-xs px-1 py-2' }, msg));
+  };
+
+  const search = debounce(async () => {
+    const query = input.value.trim();
+    if (!query) return hint('Escribí para buscar un archivo del workspace.');
+
+    let found;
+    try {
+      found = await window.yusepe.explorer.search(currentCwd(), query);
+    } catch (err) {
+      return hint(err?.message || String(err));
+    }
+    // Pudo haber seguido tipeando mientras esperábamos.
+    if (input.value.trim() !== query) return;
+    if (!found.length) return hint('Sin resultados.');
+
+    results.innerHTML = '';
+    for (const entry of found) {
+      results.append(h('div', {
+        class: 'flex items-center gap-2 rounded hover:bg-bg-elev cursor-pointer px-2 py-1.5',
+        title: entry.relPath,
+        onClick: async () => { await TileFactory.file(entry); closeModal(); },
+      }, [
+        fileIconEl(entry.name),
+        h('div', { class: 'min-w-0 flex-1' }, [
+          h('div', { class: 'truncate text-sm' }, entry.name),
+          h('div', { class: 'text-[10px] text-fg-subtle truncate' }, entry.relPath),
+        ]),
+      ]));
+    }
+  }, 200);
+
+  input.addEventListener('input', search);
+
+  openModal({
+    title: 'Fijar archivo',
+    body: h('div', {}, [
+      h('p', { class: 'text-sm text-fg-soft mb-2' },
+        'Deja un archivo a la vista en el mosaico: código, Markdown, imagen o PDF.'),
+      input,
+      results,
+    ]),
+    size: 'md',
+  });
+
+  hint('Escribí para buscar un archivo del workspace.');
+  setTimeout(() => input.focus(), 0);
 }
 
 function promptManualUrl() {

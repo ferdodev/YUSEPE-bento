@@ -10,11 +10,28 @@ import { uid } from '../utils/dom.js';
 import { createWebviewTile, normalizeUrl } from './webviewTile.js';
 import { createCalculatorTile } from './calculator.js';
 import { createTerminalTile } from './terminal.js';
+import { createFileTile } from './fileTile.js';
 
+/**
+ * Contrato de toda factoría de tiles: devuelve `{ root, shutdown? }` donde
+ * `root` es el elemento del tile en sí — no un wrapper interno. Ese nodo
+ * DEBE tener:
+ *
+ *   class: 'tile'                       -> `position: relative` (los handles
+ *                                          de mover/redimensionar que agrega
+ *                                          bentoGrid son absolute y se
+ *                                          posicionan contra él) + el fondo
+ *                                          opaco del tile.
+ *   dataset: { tileId: t.id, kind }     -> identifica el tile en el DOM.
+ *
+ * Sin la clase `tile` el tile se ve translúcido (deja pasar el wallpaper) y
+ * no se puede ni mover ni redimensionar.
+ */
 const factories = {
   webview:    (t, profileId) => createWebviewTile(t, profileId),
   calculator: (t) => createCalculatorTile(t),
   terminal:   async (t, profileId) => createTerminalTile(t, profileId),
+  file:       (t) => createFileTile(t),
 };
 
 export async function addTile({ kind, ...rest }) {
@@ -57,6 +74,22 @@ export const TileFactory = {
       rowSpan: 4,
       cwd: cwd || null,
       command: command || null,
+    });
+  },
+
+  /**
+   * Archivo fijado en el mosaico. Se guarda `relPath` (no la ruta absoluta):
+   * se resuelve contra el cwd del workspace en cada render, así el tile
+   * sobrevive a que el proyecto cambie de carpeta.
+   */
+  file(entry) {
+    return addTile({
+      kind: 'file',
+      relPath: entry.relPath,
+      name: entry.name,
+      title: entry.name,
+      colSpan: 4,
+      rowSpan: 5,
     });
   },
 
