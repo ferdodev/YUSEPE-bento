@@ -25,14 +25,13 @@
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="inline w-3.5 h-3.5 mr-1 align-middle -mt-px"><path d="M15 18l-6-6 6-6"/></svg>Workspaces
       </button>
-      <div class="flex items-center gap-2 text-sm">
-        <span class="w-2 h-2 rounded-full bg-accent"></span>
-        <span id="profile-name" class="text-fg">Sin workspace</span>
-      </div>
+      <!-- Tabs de workspaces (estilo VSCode): el activo resaltado + los que
+           quedaron con tiles vivos en segundo plano. Clic = cambiar de
+           workspace; × = cerrar. Ver renderWorkspaceTabs() en main.js. -->
       <div
-        id="running-workspaces"
-        class="flex items-center gap-1.5 overflow-x-auto max-w-[320px]"
-        title="Espacios de trabajo con tiles (terminales/webviews) en segundo plano"
+        id="workspace-tabs"
+        class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto"
+        title="Workspaces abiertos — clic para cambiar, × para cerrar"
       ></div>
       <div class="ml-auto flex items-center gap-1.5">
         <button

@@ -192,6 +192,14 @@
   #topbar [role='button'] {
     -webkit-app-region: no-drag;
   }
+  /* "Agregar" = acción primaria: fondo accent sólido + texto blanco en
+     ambos temas. Regla por id (especificidad mayor) para no depender de la
+     utilidad bg-accent, que en tema claro quedaba sin pintar el fondo y
+     dejaba el texto blanco ilegible sobre la topbar clara. */
+  #btn-add-to-space {
+    background-color: var(--color-accent);
+    color: #fff;
+  }
   /* En macOS con titleBarStyle:hiddenInset, los semáforos ocupan el
      extremo izquierdo de la topbar: se reserva ese espacio. */
   body.platform-darwin #topbar {

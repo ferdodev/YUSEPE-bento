@@ -30,12 +30,11 @@ import { initSnippetsSidebar, toggleSnippetsSidebar } from './components/snippet
 const $ = (sel) => document.querySelector(sel);
 
 const profileSelect = $('#profile-select');
-const profileName = $('#profile-name');
 const profileScreen = $('#profile-screen');
 const profileList = $('#profile-list');
 const bento = $('#bento');
 const backBtn = $('#btn-back-profiles');
-const runningWorkspacesEl = $('#running-workspaces');
+const workspaceTabsEl = $('#workspace-tabs');
 
 const ADD_BTN_IDS = ['btn-add-to-space', 'btn-toggle-explorer', 'btn-git', 'btn-agents', 'btn-workspace-manager', 'btn-toggle-snippets'];
 
@@ -121,7 +120,6 @@ function createProfileRow(profile) {
     onClick: async () => {
       await ProfileManager.load(profile.id);
       profileSelect.value = profile.id;
-      profileName.textContent = profile.name;
       showView();
     },
   }, [
@@ -214,7 +212,6 @@ async function createNewProfile() {
     const p = await ProfileManager.create(name, cwd);
     await refreshProfileSelect(p.id);
     await ProfileManager.load(p.id);
-    profileName.textContent = p.name;
     showView();
   } catch (err) {
     openModal({ title: 'Error', body: `${err?.message || err}` });
@@ -243,9 +240,6 @@ async function renameProfile(profile) {
     }
     await ProfileManager.rename(profile.id, name);
     await refreshProfileSelect();
-    if (state.activeProfileId === profile.id) {
-      profileName.textContent = name;
-    }
     renderProfileList();
   } catch (err) {
     openModal({ title: 'Error', body: `${err?.message || err}` });
@@ -261,8 +255,10 @@ async function deleteProfile(profile) {
   });
   if (!confirmed) return;
   await ProfileManager.remove(profile.id);
+  removeOpenTab(profile.id);
   await refreshProfileSelect();
   renderProfileList();
+  renderWorkspaceTabs();
 }
 
 /** Exporta un perfil puntual a un .json (diálogo nativo de guardado). */
@@ -294,54 +290,138 @@ async function importProfile() {
   }
 }
 
-/* ---------- Workspaces corriendo en segundo plano ---------- */
-// Un workspace queda "corriendo" cuando tiene terminales y/o webviews
-// vivos (procesos reales) aunque ya no sea el perfil activo — ver
-// core/liveTiles.js. Se listan acá para poder cerrarlos del todo.
+/* ---------- Tabs de workspaces (estilo VSCode) ---------- */
+// La tira muestra el workspace activo (resaltado) + los que quedaron con
+// tiles vivos (terminales/webviews) en segundo plano — ver core/liveTiles.js.
+// Clic en un tab inactivo = cambiar de workspace. La × cierra el tab:
+// mata sus procesos (con confirmación). Cerrar el activo te devuelve al
+// listado de workspaces.
 
-function renderRunningWorkspaces() {
-  if (!runningWorkspacesEl) return;
+// openTabIds: workspaces "abiertos" como tabs, en orden. Persisten aunque
+// no tengan tiles vivos y aunque estés en la pantalla de listado (hub), así
+// no se pierde el contexto de navegación al volver atrás. Un workspace con
+// tiles vivos en segundo plano también aparece como tab aunque nunca se haya
+// activado en esta sesión. Vive en memoria (scope de sesión, igual que
+// liveTiles) — no se persiste entre reinicios.
+let openTabIds = [];
+
+function addOpenTab(id) {
+  if (id && !openTabIds.includes(id)) openTabIds.push(id);
+}
+
+function removeOpenTab(id) {
+  openTabIds = openTabIds.filter((x) => x !== id);
+}
+
+// Orden final de tabs: los abiertos explícitamente, más los que estén
+// corriendo en segundo plano sin haber sido registrados. Se filtran los
+// que ya no existen como perfil (p. ej. borrados).
+function tabOrder() {
+  const ids = [...openTabIds];
+  for (const id of liveTiles.runningProfileIds()) {
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids.filter((id) => state.profiles.some((p) => p.id === id));
+}
+
+function renderWorkspaceTabs() {
+  if (!workspaceTabsEl) return;
   const activeId = state.activeProfileId;
-  const ids = [...liveTiles.runningProfileIds()].filter((id) => id !== activeId);
+  const order = tabOrder();
 
-  runningWorkspacesEl.innerHTML = '';
-  for (const id of ids) {
+  workspaceTabsEl.innerHTML = '';
+  for (const id of order) {
+    const isActive = id === activeId;
     const profile = state.profiles.find((p) => p.id === id);
     const name = profile?.name || 'Workspace';
     const count = liveTiles.countForProfile(id);
-    runningWorkspacesEl.append(h('div', {
+
+    // tabindex="0" es clave: hace el tab focuseable. Si un <webview> tiene el
+    // foco, Chromium consume el primer click sobre un elemento NO focuseable
+    // (lo usa solo para desenfocar el guest) y nunca llega a JS. Al ser
+    // focuseable, el click lo enfoca y se procesa normal.
+    const tab = h('div', {
+      tabindex: '0',
+      role: 'button',
       class:
-        'flex items-center gap-1.5 text-xs pl-2.5 pr-1.5 py-1 rounded-full border border-line bg-bg-elev/70 text-fg-subtle shrink-0',
-      title: `${name} · ${count} tile(s) en segundo plano`,
+        'group flex items-center gap-1.5 h-8 pl-2.5 pr-1 rounded-t-md text-xs shrink-0 border-b-2 transition cursor-pointer focus:outline-none ' +
+        (isActive
+          ? 'bg-bg-elev text-fg border-accent'
+          : 'bg-transparent text-fg-subtle border-transparent hover:bg-bg-elev/60 hover:text-fg'),
+      title: isActive
+        ? `${name} (activo)`
+        : count
+          ? `${name} · ${count} tile(s) en segundo plano — clic para abrir`
+          : `${name} — clic para abrir`,
+      onMousedown: (e) => {
+        if (e.button === 0 && !isActive) activateProfile(id);
+      },
+      // Enter/Espacio también activan (accesibilidad de tab focuseable).
+      onKeydown: (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !isActive) {
+          e.preventDefault();
+          activateProfile(id);
+        }
+      },
     }, [
-      h('span', { class: 'w-1.5 h-1.5 rounded-full bg-accent shrink-0' }),
-      h('span', { class: 'truncate max-w-[8rem]' }, name),
+      h('span', {
+        class:
+          'w-1.5 h-1.5 rounded-full shrink-0 ' +
+          (isActive ? 'bg-accent' : count ? 'bg-accent/50' : 'bg-transparent'),
+      }),
+      h('span', { class: 'truncate max-w-[11rem]' }, name),
       h('button', {
-        class: 'inline-flex items-center text-fg-subtle hover:text-red-400 transition px-0.5',
-        title: `Cerrar "${name}" (mata sus terminales/webviews en segundo plano)`,
-        onClick: (e) => { e.stopPropagation(); killBackgroundWorkspace(id, name); },
+        class:
+          'inline-flex items-center rounded p-0.5 text-fg-subtle hover:text-red-400 hover:bg-red-400/10 transition ' +
+          (isActive ? '' : 'opacity-0 group-hover:opacity-100'),
+        title: `Cerrar "${name}"`,
+        // stopPropagation en mousedown para que el × no dispare el cambio de
+        // tab (que también escucha mousedown); el cierre corre en click.
+        onMousedown: (e) => { e.stopPropagation(); },
+        onClick: (e) => { e.stopPropagation(); closeWorkspaceTab(id, name, isActive); },
       }, svgIcon('close', { size: 13 })),
-    ]));
+    ]);
+    workspaceTabsEl.append(tab);
   }
 }
 
-async function killBackgroundWorkspace(profileId, name) {
+async function closeWorkspaceTab(profileId, name, isActive) {
   const count = liveTiles.countForProfile(profileId);
-  const confirmed = await confirmModal({
-    title: 'Cerrar espacio en segundo plano',
-    body: `¿Cerrar "${name}"? Esto terminará ${count} tile(s) en segundo plano (terminales y/o webviews con procesos en ejecución).`,
-    confirmLabel: 'Cerrar',
-    danger: true,
-  });
-  if (!confirmed) return;
+  // Solo confirmamos si hay procesos vivos que matar; cerrar un tab sin
+  // nada corriendo no destruye nada, no vale interrumpir.
+  if (count) {
+    const confirmed = await confirmModal({
+      title: 'Cerrar workspace',
+      body: `¿Cerrar "${name}"? Esto terminará ${count} tile(s) (terminales y/o webviews con procesos en ejecución).`,
+      confirmLabel: 'Cerrar',
+      danger: true,
+    });
+    if (!confirmed) return;
+  }
+
+  // Al cerrar el activo, saltamos al tab vecino que quede; si no queda
+  // ninguno, volvemos al listado de workspaces.
+  const next = isActive ? tabOrder().find((id) => id !== profileId) : null;
+
+  removeOpenTab(profileId);
   liveTiles.killWorkspace(profileId);
+
+  if (isActive) {
+    if (next) {
+      activateProfile(next);
+    } else {
+      profileSelect.value = '';
+      ProfileManager.clear();
+    }
+  } else {
+    renderWorkspaceTabs();
+  }
 }
 
 /* ---------- Event handlers ---------- */
 
 async function activateProfile(id) {
   await ProfileManager.load(id);
-  profileName.textContent = state.profile.name;
   profileSelect.value = id;
   showView();
 }
@@ -423,23 +503,22 @@ bus.on('workspace:import-requested', importProfile);
 /* ---------- Reactividad ---------- */
 
 bus.on('profile:loaded', () => {
-  profileName.textContent = state.profile?.name || 'Sin workspace';
+  addOpenTab(state.activeProfileId);
   showView();
-  renderRunningWorkspaces();
+  renderWorkspaceTabs();
 });
 
 bus.on('profile:cleared', () => {
-  profileName.textContent = 'Sin workspace';
   showView();
-  renderRunningWorkspaces();
+  renderWorkspaceTabs();
 });
 
 bus.on('profile:renamed', () => {
   refreshProfileSelect();
-  renderRunningWorkspaces();
+  renderWorkspaceTabs();
 });
 
-bus.on('live-tiles:changed', renderRunningWorkspaces);
+bus.on('live-tiles:changed', renderWorkspaceTabs);
 
 bus.on('tile:added',   () => renderBento());
 bus.on('tile:removed', () => renderBento());
@@ -472,6 +551,6 @@ bus.on('calc:result', ({ value }) => {
   initSnippetsSidebar();
   await refreshProfileSelect();
   showView();
-  renderRunningWorkspaces();
+  renderWorkspaceTabs();
   bus.emit('app:ready');
 })();
