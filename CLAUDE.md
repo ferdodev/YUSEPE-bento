@@ -100,6 +100,10 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
   con el mismo patrón de seguridad (`resolveSafe`): toda ruta relativa se
   valida contra el `root`/`cwd` del workspace para bloquear path traversal
   (`..`). Si tocás uno, revisá el otro para mantener el patrón consistente.
+  En explorerFs, las operaciones destructivas (renombrar, borrar) usan
+  `resolveEntryPath`, que además rechaza el root mismo. **explorerFs no
+  importa `electron` a propósito**: así corre bajo vitest sin mocks. Lo que
+  necesita `shell` (papelera, revelar en Finder) vive en `ipc.js`.
 - `src/main/toolDetector.js` — detecta CLIs instaladas (`claude`, `opencode`,
   `lazygit`, `lazydocker`, `nvim`, `vim`, `btop`) invocando el shell del
   usuario en modo interactivo (`-ic`), no `process.env.PATH` crudo — las
@@ -162,6 +166,7 @@ Electron ni del DOM:
 - `src/renderer/core/eventBus.test.js` — pub/sub, wildcards, resiliencia a errores.
 - `src/main/storage.test.js` — CRUD de perfiles sobre disco real (dir temporal), incluye regresión del bug histórico de índice duplicado.
 - `src/main/pathSafety.test.js` — regresión de seguridad: `resolveSafe` (vía `resolvePath`) en explorerFs **y** agentOps rechaza path traversal (`..`, rutas absolutas, hermanos con prefijo compartido). Misma batería para ambos porque comparten implementación.
+- `src/main/explorerFs.test.js` — escrituras del explorador sobre disco real: `createEntry`, `renameEntry`, `duplicateEntry`, `resolveEntryPath`. La regresión clave es que ninguna pise trabajo del usuario en silencio (`fs.rename` sí lo haría).
 
 ## Notas de empaquetado
 

@@ -44,6 +44,10 @@ const PATHS = {
   upload: '<path d="M12 15V3M8 7l4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
   external: '<path d="M14 4h6v6M20 4l-8 8M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/>',
   square: '<rect x="4" y="4" width="16" height="16" rx="2"/>',
+  'file-plus': '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M19 11.5V8l-5-5H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6.5"/><path d="M16 18h6M19 15v6"/>',
+  'folder-plus': '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v3"/><path d="M3 7v10a2 2 0 0 0 2 2h7"/><path d="M16 18h6M19 15v6"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 15.7-6L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16M3 21v-5h5"/>',
+  collapse: '<path d="M7 20l5-5 5 5M7 4l5 5 5-5"/>',
 };
 
 /** String del <svg> — para insertar en templates/innerHTML. */

@@ -56,6 +56,12 @@ contextBridge.exposeInMainWorld('yusepe', {
     read: (root, relPath) => ipcRenderer.invoke('explorer:read', { root, relPath }),
     search: (root, query) => ipcRenderer.invoke('explorer:search', { root, query }),
     write: (root, relPath, content) => ipcRenderer.invoke('explorer:write', { root, relPath, content }),
+    create: (root, relPath, isDir) => ipcRenderer.invoke('explorer:create', { root, relPath, isDir }),
+    rename: (root, relPath, newName) => ipcRenderer.invoke('explorer:rename', { root, relPath, newName }),
+    duplicate: (root, relPath) => ipcRenderer.invoke('explorer:duplicate', { root, relPath }),
+    trash: (root, relPath) => ipcRenderer.invoke('explorer:trash', { root, relPath }),
+    reveal: (root, relPath) => ipcRenderer.invoke('explorer:reveal', { root, relPath }),
+    absPath: (root, relPath) => ipcRenderer.invoke('explorer:abs-path', { root, relPath }),
     readMedia: (root, relPath) => ipcRenderer.invoke('explorer:read-media', { root, relPath }),
     openInSystem: (root, relPath) => ipcRenderer.invoke('explorer:open-in-system', { root, relPath }),
   },
@@ -116,7 +122,13 @@ contextBridge.exposeInMainWorld('yusepe', {
     pickImage: () => ipcRenderer.invoke('dialog:pick-image'),
   },
 
+  clipboard: {
+    writeText: (text) => ipcRenderer.invoke('clipboard:write-text', { text }),
+  },
+
   menu: {
+    // Abre un menú contextual nativo y resuelve con el id elegido (o null).
+    popup: (items) => ipcRenderer.invoke('menu:popup', { items }),
     onCloseTile:       (handler) => on('menu:close-tile', handler),
     onTileAction:      (handler) => on('menu:tile-action', handler),
     onCommandPalette:  (handler) => on('menu:command-palette', handler),

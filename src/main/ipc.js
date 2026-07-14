@@ -7,11 +7,11 @@
  *   - PTY (crear terminales por webContents del sender)
  * --------------------------------------------------------------
  */
-import { ipcMain, shell } from 'electron';
+import { BrowserWindow, clipboard, ipcMain, Menu, shell } from 'electron';
 import { join } from 'path';
 import { ProfileStorage } from './storage.js';
 import { detectTools } from './toolDetector.js';
-import { listDir, readFilePreview, readMediaBytes, resolvePath, searchFiles, writeFile } from './explorerFs.js';
+import { createEntry, duplicateEntry, listDir, readFilePreview, readMediaBytes, renameEntry, resolveEntryPath, resolvePath, searchFiles, writeFile } from './explorerFs.js';
 import * as gitOps from './gitOps.js';
 import * as agentOps from './agentOps.js';
 import * as pexelsOps from './pexelsOps.js';
@@ -63,10 +63,50 @@ export function registerIpc({ app, profilesDir }) {
     searchFiles(root || app.getPath('home'), query));
   ipcMain.handle('explorer:write', (_e, { root, relPath, content }) =>
     writeFile(root || app.getPath('home'), relPath, content));
+  ipcMain.handle('explorer:create', (_e, { root, relPath, isDir }) =>
+    createEntry(root || app.getPath('home'), relPath, isDir));
   ipcMain.handle('explorer:read-media', (_e, { root, relPath }) =>
     readMediaBytes(root || app.getPath('home'), relPath));
   ipcMain.handle('explorer:open-in-system', (_e, { root, relPath }) =>
     shell.openPath(resolvePath(root || app.getPath('home'), relPath)));
+  ipcMain.handle('explorer:rename', (_e, { root, relPath, newName }) =>
+    renameEntry(root || app.getPath('home'), relPath, newName));
+  ipcMain.handle('explorer:duplicate', (_e, { root, relPath }) =>
+    duplicateEntry(root || app.getPath('home'), relPath));
+  // Papelera y no borrado real: un click no debería evaporar un archivo.
+  // Vive acá y no en explorerFs.js porque necesita `shell` — ese módulo no
+  // importa electron a propósito, para poder testearlo con vitest.
+  ipcMain.handle('explorer:trash', (_e, { root, relPath }) =>
+    shell.trashItem(resolveEntryPath(root || app.getPath('home'), relPath)));
+  ipcMain.handle('explorer:reveal', (_e, { root, relPath }) =>
+    shell.showItemInFolder(resolveEntryPath(root || app.getPath('home'), relPath)));
+  // Ruta absoluta para "copiar ruta absoluta": se resuelve acá para que el
+  // renderer no tenga que saber armar rutas del sistema.
+  ipcMain.handle('explorer:abs-path', (_e, { root, relPath }) =>
+    resolvePath(root || app.getPath('home'), relPath));
+
+  // -------- Clipboard --------
+  ipcMain.handle('clipboard:write-text', (_e, { text }) => clipboard.writeText(String(text ?? '')));
+
+  // -------- Menú contextual nativo --------
+  // El renderer manda un template plano [{ id, label, type, enabled }] y
+  // recibe de vuelta el `id` elegido (o null si se cerró sin elegir), así
+  // toda la lógica de cada acción vive en el renderer y acá solo se dibuja.
+  ipcMain.handle('menu:popup', (event, { items }) => new Promise((resolve) => {
+    let picked = null;
+    const template = (items || []).map((item) =>
+      item.type === 'separator'
+        ? { type: 'separator' }
+        : { label: item.label, enabled: item.enabled !== false, click: () => { picked = item.id; } });
+
+    // `picked` se lee en el callback de cierre (no se resuelve dentro del
+    // click) porque el orden entre click y cierre no está garantizado: al
+    // cerrar, el click ya corrió o no hubo ninguno.
+    Menu.buildFromTemplate(template).popup({
+      window: BrowserWindow.fromWebContents(event.sender),
+      callback: () => resolve(picked),
+    });
+  }));
 
   // -------- Git --------
   ipcMain.handle('git:status', (_e, { cwd }) => gitOps.getStatus(cwd));
@@ -181,8 +221,16 @@ export function registerIpc({ app, profilesDir }) {
     ipcMain.removeHandler('explorer:read');
     ipcMain.removeHandler('explorer:search');
     ipcMain.removeHandler('explorer:write');
+    ipcMain.removeHandler('explorer:create');
     ipcMain.removeHandler('explorer:read-media');
     ipcMain.removeHandler('explorer:open-in-system');
+    ipcMain.removeHandler('explorer:rename');
+    ipcMain.removeHandler('explorer:duplicate');
+    ipcMain.removeHandler('explorer:trash');
+    ipcMain.removeHandler('explorer:reveal');
+    ipcMain.removeHandler('explorer:abs-path');
+    ipcMain.removeHandler('clipboard:write-text');
+    ipcMain.removeHandler('menu:popup');
     ipcMain.removeHandler('git:status');
     ipcMain.removeHandler('git:diff');
     ipcMain.removeHandler('git:stage');

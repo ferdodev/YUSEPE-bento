@@ -37,6 +37,19 @@ export function resolvePath(root, relPath) {
   return resolveSafe(root, relPath);
 }
 
+/**
+ * Como resolvePath, pero además exige que apunte a algo *adentro* del root
+ * y no al root mismo. Lo usan las operaciones destructivas (borrar, renombrar):
+ * sin esto, un relPath vacío o "." resolvería al workspace entero.
+ */
+export function resolveEntryPath(root, relPath) {
+  const resolved = resolveSafe(root, relPath);
+  if (resolved === path.resolve(root)) {
+    throw new Error('No se puede operar sobre la raíz del workspace');
+  }
+  return resolved;
+}
+
 /** Lista el contenido de una carpeta (carpetas primero, luego alfabético). */
 export async function listDir(root, relPath = '.') {
   const dir = resolveSafe(root, relPath);
@@ -141,6 +154,120 @@ export async function readMediaBytes(root, relPath) {
 
   const buf = await fs.readFile(file);
   return { mime, bytes: buf };
+}
+
+/**
+ * Crea un archivo vacío o una carpeta dentro del workspace.
+ *
+ * `relPath` puede venir anidado ("src/utils/foo.js"): las carpetas
+ * intermedias se crean solas, igual que en VSCode. `resolveSafe` corre
+ * primero, así que el destino ya está garantizado dentro del root y el
+ * mkdir recursivo de los padres no puede escaparse.
+ *
+ * La creación es exclusiva a propósito (`mkdir` sin `recursive`, `open`
+ * con flag 'wx'): si ya existe, falla en vez de pisar el archivo del
+ * usuario. Chequear con stat antes sería una race — dejamos que el propio
+ * syscall resuelva y traducimos EEXIST a un mensaje legible.
+ */
+export async function createEntry(root, relPath, isDir = false) {
+  const target = resolveSafe(root, relPath);
+  if (target === path.resolve(root)) throw new Error('El nombre no puede estar vacío');
+
+  const name = path.basename(target);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+
+  try {
+    if (isDir) {
+      await fs.mkdir(target);
+    } else {
+      const handle = await fs.open(target, 'wx');
+      await handle.close();
+    }
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      throw new Error(`Ya existe "${name}" en esa carpeta`);
+    }
+    throw err;
+  }
+
+  // Se devuelve la relPath normalizada por `path` (y no la del renderer)
+  // para que la UI seleccione la entrada nueva con la misma forma de ruta
+  // que produce listDir.
+  return { name, isDir, relPath: path.relative(path.resolve(root), target) };
+}
+
+/**
+ * ¿`target` ya está ocupado por otra entrada distinta de `source`?
+ *
+ * No alcanza con `stat(target)`: en macOS/Windows el FS es case-insensitive,
+ * así que renombrar "Foo.md" -> "foo.md" encuentra el propio archivo origen
+ * y parecería un choque. Se comparan los inodes para distinguir "ya existe
+ * otra cosa ahí" de "es el mismo archivo con otra grafía".
+ */
+async function isOccupiedByOther(target, source) {
+  const targetStat = await fs.stat(target).catch(() => null);
+  if (!targetStat) return false;
+  const sourceStat = await fs.stat(source).catch(() => null);
+  if (!sourceStat) return true;
+  return !(targetStat.ino === sourceStat.ino && targetStat.dev === sourceStat.dev);
+}
+
+/**
+ * Renombra (o mueve, si `newName` trae subcarpetas) una entrada dentro del
+ * workspace. Origen y destino se validan por separado contra el root.
+ *
+ * `fs.rename` pisa el destino en silencio en POSIX, así que el chequeo de
+ * ocupado es lo único que evita que renombrar sobre un archivo existente lo
+ * destruya. Queda una race chica entre el chequeo y el rename; se asume, la
+ * alternativa portable no existe.
+ */
+export async function renameEntry(root, relPath, newName) {
+  const source = resolveEntryPath(root, relPath);
+  const trimmed = (newName || '').trim();
+  if (!trimmed) throw new Error('El nombre no puede estar vacío');
+
+  const target = resolveEntryPath(root, path.join(path.dirname(relPath), trimmed));
+  if (target === source) return { name: path.basename(source), relPath, unchanged: true };
+
+  if (await isOccupiedByOther(target, source)) {
+    throw new Error(`Ya existe "${path.basename(target)}" en esa carpeta`);
+  }
+
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.rename(source, target);
+
+  const stat = await fs.stat(target);
+  return {
+    name: path.basename(target),
+    isDir: stat.isDirectory(),
+    relPath: path.relative(path.resolve(root), target),
+  };
+}
+
+/**
+ * Copia una entrada al lado de sí misma con sufijo " copia" (", copia 2", …
+ * si ya estuviera tomado). Las carpetas se copian recursivamente.
+ */
+export async function duplicateEntry(root, relPath) {
+  const source = resolveEntryPath(root, relPath);
+  const stat = await fs.stat(source);
+
+  const dir = path.dirname(source);
+  const ext = stat.isDirectory() ? '' : path.extname(source);
+  const base = path.basename(source, ext);
+
+  let target = path.join(dir, `${base} copia${ext}`);
+  for (let n = 2; await fs.stat(target).then(() => true, () => false); n++) {
+    target = path.join(dir, `${base} copia ${n}${ext}`);
+  }
+
+  await fs.cp(source, target, { recursive: stat.isDirectory(), errorOnExist: true, force: false });
+
+  return {
+    name: path.basename(target),
+    isDir: stat.isDirectory(),
+    relPath: path.relative(path.resolve(root), target),
+  };
 }
 
 /** Escribe un archivo (escritura atómica: .tmp + rename). */
