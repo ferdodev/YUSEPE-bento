@@ -90,6 +90,21 @@ contextBridge.exposeInMainWorld('yusepe', {
     subagents: (cwd) => ipcRenderer.invoke('agents:subagents', { cwd }),
   },
 
+  tasks: {
+    list: (cwd) => ipcRenderer.invoke('tasks:list', { cwd }),
+    create: (cwd, title) => ipcRenderer.invoke('tasks:create', { cwd, title }),
+    setDone: (cwd, id, done) => ipcRenderer.invoke('tasks:set-done', { cwd, id, done }),
+    update: (cwd, id, { title, notes } = {}) => ipcRenderer.invoke('tasks:update', { cwd, id, title, notes }),
+    remove: (cwd, id) => ipcRenderer.invoke('tasks:delete', { cwd, id }),
+    launchText: (cwd, id) => ipcRenderer.invoke('tasks:launch-text', { cwd, id }),
+    // Vigilancia de .ybento/tasks — devuelve false si la carpeta aún no existe.
+    watch: (cwd) => ipcRenderer.invoke('tasks:watch', { cwd }),
+    unwatch: (cwd) => ipcRenderer.invoke('tasks:unwatch', { cwd }),
+    onChangedOnDisk: (handler) => on('tasks:changed-on-disk', handler),
+    launchTemplate: (cwd) => ipcRenderer.invoke('tasks:launch-template', { cwd }),
+    setLaunchTemplate: (cwd, content) => ipcRenderer.invoke('tasks:set-launch-template', { cwd, content }),
+  },
+
   pexels: {
     search: (query, page) => ipcRenderer.invoke('pexels:search', { query, page }),
   },

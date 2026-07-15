@@ -39,7 +39,7 @@ export function openAddToSpace() {
     return;
   }
 
-  const actions = h('div', { class: 'grid grid-cols-2 sm:grid-cols-5 gap-1.5' }, [
+  const actions = h('div', { class: 'grid grid-cols-2 sm:grid-cols-3 gap-1.5' }, [
     actionButton({
       icon: 'terminal',
       label: 'Terminal',
@@ -49,6 +49,11 @@ export function openAddToSpace() {
       icon: 'bolt',
       label: 'Precargada…',
       onClick: promptPreloadedTerminal,
+    }),
+    actionButton({
+      icon: 'tasks',
+      label: 'Tareas',
+      onClick: async () => { await TileFactory.tasks(); closeModal(); },
     }),
     actionButton({
       icon: 'calculator',

@@ -8,12 +8,13 @@
  * --------------------------------------------------------------
  */
 import { BrowserWindow, clipboard, ipcMain, Menu, shell } from 'electron';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { ProfileStorage } from './storage.js';
 import { detectTools } from './toolDetector.js';
 import { createEntry, duplicateEntry, listDir, readFilePreview, readMediaBytes, renameEntry, resolveEntryPath, resolvePath, searchFiles, writeFile } from './explorerFs.js';
 import * as gitOps from './gitOps.js';
 import * as agentOps from './agentOps.js';
+import * as tasksOps from './tasksOps.js';
 import * as pexelsOps from './pexelsOps.js';
 import { SnippetsStore } from './snippetsOps.js';
 
@@ -127,6 +128,76 @@ export function registerIpc({ app, profilesDir }) {
   ipcMain.handle('agents:read-instruction-file', (_e, { cwd, relPath }) => agentOps.readInstructionFile(cwd, relPath));
   ipcMain.handle('agents:write-instruction-file', (_e, { cwd, relPath, content }) => agentOps.writeInstructionFile(cwd, relPath, content));
   ipcMain.handle('agents:subagents', (_e, { cwd }) => agentOps.listSubagents(cwd));
+
+  // -------- Tareas (.ybento/tasks) --------
+  ipcMain.handle('tasks:list', (_e, { cwd }) => tasksOps.listTasks(cwd));
+  ipcMain.handle('tasks:create', (_e, { cwd, title }) => tasksOps.createTask(cwd, title));
+  ipcMain.handle('tasks:set-done', (_e, { cwd, id, done }) => tasksOps.setTaskDone(cwd, id, done));
+  ipcMain.handle('tasks:update', (_e, { cwd, id, title, notes }) =>
+    tasksOps.updateTask(cwd, id, { title, notes }));
+  ipcMain.handle('tasks:delete', (_e, { cwd, id }) => tasksOps.deleteTask(cwd, id));
+  // Vigilancia de .ybento/tasks: el agente de código marca las tareas como
+  // hechas escribiendo el .md (es lo que le pide el launchText), así que los
+  // cambios vienen de afuera de Bento y hay que enterarse solos.
+  //
+  // Un watcher por (ventana, workspace). Se debouncean los eventos porque un
+  // solo guardado dispara varios ('rename' + 'change', o el .tmp + rename de
+  // nuestra propia escritura atómica).
+  //
+  // Se cuentan referencias: varios tiles de tareas de la misma ventana miran
+  // el mismo workspace y comparten watcher, así que cerrar uno no puede dejar
+  // ciegos a los demás. El watcher real se cierra recién con el último.
+  const taskWatchers = new Map();
+  const watcherKey = (sender, cwd) => `${sender.id}::${resolve(cwd)}`;
+
+  function stopTaskWatcher(key) {
+    const entry = taskWatchers.get(key);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    entry.close();
+    taskWatchers.delete(key);
+  }
+
+  ipcMain.handle('tasks:watch', (event, { cwd }) => {
+    if (!cwd) return false;
+    const key = watcherKey(event.sender, cwd);
+
+    const existing = taskWatchers.get(key);
+    if (existing) {
+      existing.refs++;
+      return true;
+    }
+
+    const entry = { timer: null, close: () => {}, refs: 1 };
+    const close = tasksOps.watchTasks(cwd, () => {
+      clearTimeout(entry.timer);
+      entry.timer = setTimeout(() => {
+        if (!event.sender.isDestroyed()) event.sender.send('tasks:changed-on-disk', { cwd });
+      }, 120);
+    });
+    // La carpeta todavía no existe: el renderer reintenta al crear la primera.
+    if (!close) return false;
+
+    entry.close = close;
+    taskWatchers.set(key, entry);
+    event.sender.once('destroyed', () => stopTaskWatcher(key));
+    return true;
+  });
+
+  ipcMain.handle('tasks:unwatch', (event, { cwd }) => {
+    if (!cwd) return true;
+    const key = watcherKey(event.sender, cwd);
+    const entry = taskWatchers.get(key);
+    if (!entry) return true;
+    entry.refs--;
+    if (entry.refs <= 0) stopTaskWatcher(key);
+    return true;
+  });
+
+  ipcMain.handle('tasks:launch-text', (_e, { cwd, id }) => tasksOps.getLaunchText(cwd, id));
+  ipcMain.handle('tasks:launch-template', (_e, { cwd }) => tasksOps.readLaunchTemplate(cwd));
+  ipcMain.handle('tasks:set-launch-template', (_e, { cwd, content }) =>
+    tasksOps.writeLaunchTemplate(cwd, content));
 
   // -------- Pexels (buscador de wallpapers) --------
   ipcMain.handle('pexels:search', (_e, { query, page }) => pexelsOps.searchPhotos(query, page));
@@ -248,6 +319,17 @@ export function registerIpc({ app, profilesDir }) {
     ipcMain.removeHandler('agents:read-instruction-file');
     ipcMain.removeHandler('agents:write-instruction-file');
     ipcMain.removeHandler('agents:subagents');
+    ipcMain.removeHandler('tasks:list');
+    ipcMain.removeHandler('tasks:create');
+    ipcMain.removeHandler('tasks:set-done');
+    ipcMain.removeHandler('tasks:update');
+    ipcMain.removeHandler('tasks:delete');
+    ipcMain.removeHandler('tasks:launch-text');
+    ipcMain.removeHandler('tasks:launch-template');
+    ipcMain.removeHandler('tasks:set-launch-template');
+    ipcMain.removeHandler('tasks:watch');
+    ipcMain.removeHandler('tasks:unwatch');
+    for (const key of [...taskWatchers.keys()]) stopTaskWatcher(key);
     ipcMain.removeHandler('profiles:set-wallpaper');
     ipcMain.removeHandler('pexels:search');
     ipcMain.removeHandler('snippets:list');

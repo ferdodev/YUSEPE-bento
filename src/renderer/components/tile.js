@@ -11,6 +11,7 @@ import { createWebviewTile, normalizeUrl } from './webviewTile.js';
 import { createCalculatorTile } from './calculator.js';
 import { createTerminalTile } from './terminal.js';
 import { createFileTile } from './fileTile.js';
+import { createTasksTile } from './tasksTile.js';
 
 /**
  * Contrato de toda factoría de tiles: devuelve `{ root, shutdown? }` donde
@@ -32,6 +33,7 @@ const factories = {
   calculator: (t) => createCalculatorTile(t),
   terminal:   async (t, profileId) => createTerminalTile(t, profileId),
   file:       (t) => createFileTile(t),
+  tasks:      (t) => createTasksTile(t),
 };
 
 export async function addTile({ kind, ...rest }) {
@@ -60,6 +62,14 @@ export const TileFactory = {
 
   calculator() {
     return addTile({ kind: 'calculator', colSpan: 4, rowSpan: 4 });
+  },
+
+  /**
+   * Lista de tareas del workspace. No guarda nada en el perfil: las tareas
+   * son .md en `.ybento/tasks/` del proyecto (ver main/tasksOps.js).
+   */
+  tasks() {
+    return addTile({ kind: 'tasks', title: 'Tareas', colSpan: 3, rowSpan: 5 });
   },
 
   terminal(cwd = null) {

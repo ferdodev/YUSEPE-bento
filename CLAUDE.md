@@ -77,6 +77,17 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
   `<userData>/snippets.json`, mismo patrón de escritura atómica que
   `storage.js`. Se ejecutan en la terminal enfocada vía
   `components/snippetsSidebar.js`.
+- `src/main/tasksOps.js` — app de Tareas: lista por workspace respaldada en
+  `.md` reales dentro del proyecto (`.ybento/tasks/`), un archivo por tarea
+  con frontmatter mínimo (`title`/`done`/`createdAt`) + cuerpo libre para
+  notas. **El disco es la fuente de verdad, no hay índice**: el estado ES el
+  directorio, así que los `.md` se editan a mano y se versionan con git sin
+  desincronizar nada. Un archivo por tarea (y no un JSON único) porque cada
+  tarea necesita ruta propia para el futuro `launchText` (`{{task_route}}`).
+  Mismo `resolveSafe` que explorerFs/agentOps; los ids se validan como
+  nombre de archivo `.md` pelado (`resolveTaskPath`), sin separadores.
+  El auto-`.gitignore` de `.ybento` quedó **fuera de alcance** a propósito:
+  las tareas se commitean con el repo.
 - `src/main/pexelsOps.js` — cliente de la API de Pexels para el buscador de
   wallpapers. Vive en el proceso main a propósito: la API key
   (`process.env.APIKEY_PEXELS`) se inyecta en build-time desde `.env` vía
@@ -166,6 +177,7 @@ Electron ni del DOM:
 - `src/renderer/core/eventBus.test.js` — pub/sub, wildcards, resiliencia a errores.
 - `src/main/storage.test.js` — CRUD de perfiles sobre disco real (dir temporal), incluye regresión del bug histórico de índice duplicado.
 - `src/main/pathSafety.test.js` — regresión de seguridad: `resolveSafe` (vía `resolvePath`) en explorerFs **y** agentOps rechaza path traversal (`..`, rutas absolutas, hermanos con prefijo compartido). Misma batería para ambos porque comparten implementación.
+- `src/main/tasksOps.test.js` — app de Tareas sobre disco real: alta/marcado/borrado, slugs únicos, y las regresiones que importan cuando el usuario puede tocar los `.md` a mano (frontmatter roto no tira la lista abajo, marcar una tarea no le come las notas del cuerpo, un id con separadores no escribe fuera de `.ybento/tasks`).
 - `src/main/explorerFs.test.js` — escrituras del explorador sobre disco real: `createEntry`, `renameEntry`, `duplicateEntry`, `resolveEntryPath`. La regresión clave es que ninguna pise trabajo del usuario en silencio (`fs.rename` sí lo haría). Cubre además que `searchFiles` encuentre dotfiles/dotfolders: **el explorador muestra todos los archivos del proyecto a propósito** (decisión de producto), así que el buscador no debe esconder nada — lo único que no se recorre es `SEARCH_IGNORE`, que filtra por carpeta concreta (`.git`, `node_modules`, …), nunca por "empieza con punto".
 
 ## Notas de empaquetado
