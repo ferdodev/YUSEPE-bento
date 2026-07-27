@@ -14,6 +14,23 @@ files:
 asarUnpack:
   - '**/node_modules/node-pty/**/*'
 
+# El CLI `ybento` (el que usan los agentes del loop para mandarse mensajes)
+# se copia como fuente, fuera del asar: lo ejecuta el binario de la app con
+# ELECTRON_RUN_AS_NODE, así que tiene que ser un archivo real en disco y no
+# el bundle del proceso main.
+#
+# Se copia con la estructura de `src/` intacta a propósito: `cli/run.js`
+# importa `../main/loopOps.js`, y el `package.json` con "type": "module" es
+# lo que hace que Node los lea como ESM.
+extraResources:
+  - from: src
+    to: ybento-cli/src
+    filter:
+      - package.json
+      - cli/**/*.{js,mjs}
+      - '!cli/**/*.test.js'
+      - main/loopOps.js
+
 mac:
   category: public.app-category.productivity
   target:

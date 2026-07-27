@@ -22,9 +22,14 @@ export default [
     },
   },
 
-  // Proceso main + preload: entorno Node (fs, path, process, __dirname…).
+  // Proceso main + preload + CLI: entorno Node (fs, path, process…).
+  // El CLI (`src/cli/`) corre suelto con `node`, fuera de Electron: es lo
+  // que usan los agentes desde su terminal para hablar con el loop.
   {
-    files: ['src/main/**/*.js', 'src/preload/**/*.js', '*.config.{js,mjs,cjs}'],
+    files: [
+      'src/main/**/*.js', 'src/preload/**/*.js', 'src/cli/**/*.{js,mjs}',
+      '*.config.{js,mjs,cjs}',
+    ],
     languageOptions: {
       globals: { ...globals.node },
     },
