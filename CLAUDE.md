@@ -88,6 +88,102 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
   nombre de archivo `.md` pelado (`resolveTaskPath`), sin separadores.
   El auto-`.gitignore` de `.ybento` quedó **fuera de alcance** a propósito:
   las tareas se commitean con el repo.
+- `src/main/loopOps.js` + `loopDispatcher.js` + `loopShim.js` — **loop
+  multiagente**: varias terminales, cada una con un agente distinto, que se
+  mandan mensajes para trabajar en conjunto (uno codea, otro revisa). Estado
+  en `.ybento/loop/` dentro del proyecto: `messages.jsonl` (append-only),
+  `status.json` (agentes + `waiting`/`working`) y `skill.md` (el protocolo
+  que leen los agentes). Mismo criterio que tasksOps: el disco es la fuente
+  de verdad, y acá suma que el agente puede leer su bandeja con un `Read`
+  aunque el CLI falle.
+  - **`messages.jsonl` y no `.json`**: hay N escritores concurrentes (un
+    proceso del CLI por agente, más Bento). Un JSON único obliga a
+    leer-modificar-escribir y dos agentes que postean a la vez se pisan el
+    mensaje. `status.json` sí se reescribe entero, por eso va con lock de
+    archivo (`open` en `wx` + ruptura por antigüedad).
+  - **El repartidor (`loopDispatcher.js`) vive en main, no en el renderer**:
+    los mensajes los postean *otros procesos*, así que hace falta alguien
+    vigilando el disco. Entrega **un mensaje por vuelta y por agente**, y
+    sólo a los que están en `waiting` — escribir en el pty de un agente
+    ocupado entrelaza el texto con su TUI. La serialización sale gratis del
+    gate de estado, sin cola aparte.
+  - **`nombre -> ptyId` vive en memoria, nunca en disco**: el ptyId muere
+    con la terminal, la identidad (`@claudio`) no. `status.json` guarda el
+    `tileId`, que es lo estable.
+  - **Entregar es: una línea, y el Enter aparte.** Del otro lado hay un TUI
+    (Claude Code, opencode), no un shell. Dos reglas que salieron de la
+    primera prueba de campo y no son cosméticas:
+    (a) `formatForTerminal` colapsa el mensaje a **una sola línea** — un
+    `\n` no es un separador visual, es un Enter dentro de la caja de texto
+    del agente, y parte el mensaje. El texto original conserva sus saltos en
+    `messages.jsonl` y en el panel; sólo se aplana para el viaje por el pty.
+    (b) el `\r` se manda en una **escritura separada**, con `SUBMIT_DELAY_MS`
+    de por medio: esos TUIs detectan ráfagas de input como *pegado* y se
+    tragan el CR como contenido, dejando el mensaje escrito sin enviar. Con
+    la pausa, llega como una pulsación de tecla de verdad.
+    (c) el payload va **entre comillas simples**. No siempre hay un TUI
+    escuchando: si el proceso del agente terminó, la terminal volvió al
+    prompt y lo que pegamos lo interpreta el shell. Sin comillas, un
+    backtick o `$(...)` dentro de un mensaje **se ejecuta** (verificado en
+    campo), y una comilla sin cerrar deja a zsh en continuación tragándose
+    el Enter y colgando el loop. Entre comillas simples el peor caso es un
+    "command not found" con el prompt limpio. Las comillas simples del
+    texto se pasan a tipográficas (`’`) para no tener que escapar nada.
+  - **Presencia: no se entrega a una terminal sin agente.** Cuando el
+    proceso del agente termina, su terminal vuelve al prompt; entregar ahí
+    marcaba el mensaje como leído por nadie — pérdida silenciosa. El
+    detector es `proc.process` (el proceso en primer plano del pty): si es
+    el shell, el agente no está. En ese caso **no se entrega y el cursor no
+    avanza**, así el mensaje sigue pendiente y recuperable. Ante la duda
+    (sin sonda, o el pty no responde) se asume presente: es peor dejar mudo
+    un loop sano que entregar de más. La presencia vive en memoria, como el
+    binding `nombre -> ptyId`.
+  - **El quoting es un problema en las DOS direcciones.** Además de lo que
+    Bento escribe al pty, está lo que el agente escribe en su shell:
+    `ybento enviar @x "reporte largo"` expande backticks y `$` en silencio,
+    y el agente manda algo distinto de lo que escribió sin enterarse. Por
+    eso el CLI acepta `-f archivo` y **stdin** (heredoc), que es lo que el
+    `skill.md` recomienda para mensajes largos.
+  - **`ybento enviar` devuelve el agente a `waiting`** salvo `--ocupado`.
+    Depender de que se acuerde de hacerlo a mano es un footgun: si se
+    olvida queda incomunicado y su bandeja se frena, y el olvido aparece
+    justo cuando la iteración se pone larga. Enviar es, en el protocolo,
+    lo que hacés al terminar el turno.
+  - **Cruces**: cada mensaje guarda `seenUpTo` (hasta dónde había leído
+    quien lo escribió) y al leer se le calcula un `seq` por posición en el
+    archivo — no se persiste, porque repartir números con N escritores
+    concurrentes necesitaría un contador compartido y el orden del archivo
+    ya es la verdad. Con eso, `crossedMessages()` detecta que dos agentes
+    se escribieron a la vez y el aviso viaja en el texto que se pega. Sin
+    esto el desencuentro se descubre tres mensajes después, por contenido.
+  - **Desfase de código**: además del cruce de mensajes existe el cruce de
+    *versiones* — uno reporta un bug y el otro ya lo arregló y commiteó, así
+    que el reporte describe código que ya no existe. Cada mensaje se sella
+    con el HEAD del momento (`readHead`) y al entregarlo se avisa si el
+    árbol ya avanzó. Son dos problemas distintos con la misma pinta; los
+    dos salieron de feedback de agentes, no de los tests.
+  - **Sello de entrega y `--re`.** Cada mensaje muestra siempre sobre qué
+    commit se escribió (`[sobre a1b2c3d +cambios sin commitear]`), no sólo
+    cuando hay desfase: es el límite exacto sobre el que arranca un QA, en
+    vez de "el árbol en este momento". Y `ybento enviar --re <n>` marca a
+    qué mensaje contesta — sin eso dos agentes terminan defendiendo
+    posiciones que el otro ya había dado por cerradas.
+  - **Nombrar una terminal con el agente ya corriendo no le da identidad.**
+    El `export YBENTO_AGENT` sólo se tipea si el pty está en el prompt del
+    shell (`looksLikeShell`): si adentro hay un TUI, ese texto le entraría
+    como un mensaje del usuario, y además las herramientas del agente
+    lanzan procesos hijos del suyo, no del shell. En ese caso se avisa por
+    toast y hay que reiniciar el agente. Lo correcto es nombrar la terminal
+    **antes** de levantar el agente.
+  - **Los tests del repartidor apagan `watchFs` y suben `pollMs`.** Sus
+    propias escrituras dispararían la vigilancia y una vuelta de fondo
+    entregaría un mensaje en medio de las aserciones. Sólo el test de la
+    vigilancia los deja activos.
+  - **Las terminales de un loop no se borran.** El guard está en
+    `ProfileManager.removeTile` porque es el único camino por el que se
+    borra un tile; los botones sólo muestran el error. Cerrar el workspace
+    entero sí las mata, pero es un acto deliberado: ahí se avisa en el
+    confirm en vez de bloquear.
 - `src/main/pexelsOps.js` — cliente de la API de Pexels para el buscador de
   wallpapers. Vive en el proceso main a propósito: la API key
   (`process.env.APIKEY_PEXELS`) se inyecta en build-time desde `.env` vía
@@ -120,6 +216,18 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
   usuario en modo interactivo (`-ic`), no `process.env.PATH` crudo — las
   apps GUI en macOS arrancan con un PATH mínimo que no incluye lo que
   agrega Homebrew/nvm en `~/.zshrc`.
+- `src/cli/` — el CLI **`ybento`**, lo que usan los agentes desde su
+  terminal (`ybento estado`, `ybento bandeja`, `ybento enviar @opencito
+  "..."`). Corre suelto con Node, fuera de Electron. `run.js` tiene la
+  lógica y recibe su entorno por parámetro (argv, cwd, env, salidas) para
+  poder testearse sin spawnear procesos; `ybento.mjs` es sólo el ejecutable.
+  El comando existe en el PATH porque `loopShim.js` genera un wrapper en
+  `<userData>/bin` y `pty:create` antepone ese directorio — el wrapper
+  ejecuta **el binario de la propia app** con `ELECTRON_RUN_AS_NODE=1`, así
+  no depende de que el usuario tenga Node instalado.
+  **`src/package.json` (`{"type":"module"}`) es parte de esto**: sin él,
+  Node imprime un warning de módulo en *cada* invocación del CLI, que el
+  agente ve en su terminal y paga en tokens.
 - `src/preload/index.js` — expone `window.yusepe.{profiles,pty,tools,shell,theme,dialog,menu}`
   vía `contextBridge` (`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`).
 
@@ -138,6 +246,17 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
   poder razonarse ahí sin tocar `bentoGrid.js`.
 - `core/liveTiles.js` — registro de tiles vivos (terminal/webview) que
   persisten entre cambios de workspace en vez de destruirse.
+- `components/loopSidebar.js` — panel del loop multiagente (lado derecho,
+  mismo patrón que `snippetsSidebar.js`): roster de terminales con su
+  nombre/rol/estado, y el hilo de mensajes. Es una conversación **grupal**
+  —todo el workspace en un solo hilo con `de → para` visible— a propósito:
+  el valor de mirarlo es seguir la cadena completa (usuario pide → claudio
+  hace → opencito revisa → vuelve a claudio), y partirla por par de agentes
+  la escondería. **Acá no se reparte nada**: pegar el mensaje en la terminal
+  destino lo hace `main/loopDispatcher.js`. Este panel sólo muestra y postea.
+  Nombrar una terminal ya abierta también le exporta `YBENTO_AGENT` al shell
+  en ejecución — el entorno se fija al crear el pty, así que sin eso el CLI
+  le diría "no sé quién sos".
 - `core/theme.js` — tema claro/oscuro persistido en `localStorage`, y
   propagado a `nativeTheme.themeSource` (proceso main) para que los
   `<webview>` respeten el mismo `prefers-color-scheme`.
@@ -178,6 +297,10 @@ Electron ni del DOM:
 - `src/main/storage.test.js` — CRUD de perfiles sobre disco real (dir temporal), incluye regresión del bug histórico de índice duplicado.
 - `src/main/pathSafety.test.js` — regresión de seguridad: `resolveSafe` (vía `resolvePath`) en explorerFs **y** agentOps rechaza path traversal (`..`, rutas absolutas, hermanos con prefijo compartido). Misma batería para ambos porque comparten implementación.
 - `src/main/tasksOps.test.js` — app de Tareas sobre disco real: alta/marcado/borrado, slugs únicos, y las regresiones que importan cuando el usuario puede tocar los `.md` a mano (frontmatter roto no tira la lista abajo, marcar una tarea no le come las notas del cuerpo, un id con separadores no escribe fuera de `.ybento/tasks`).
+- `src/main/loopOps.test.js` — motor del loop sobre disco real. A diferencia del resto del proyecto, acá escriben **varios procesos a la vez**: hay tests con N escritores concurrentes (fue lo que destapó que `EMPTY_STATUS` se compartía entre workspaces por una copia superficial).
+- `src/main/loopDispatcher.test.js` — el repartidor con un pty falso: que un mensaje llegue **una sola vez**, a la terminal correcta, y **nunca** a un agente en `working`. Un fallo ahí se manifiesta como texto entrelazado en un TUI o un agente repitiendo la misma tarea — imposible de diagnosticar a mano.
+- `src/main/loopShim.test.js` — que el wrapper de `ybento` sea ejecutable de verdad, incluso con espacios y comillas en la ruta (en macOS siempre hay uno: "Application Support"). Si falla, el agente ve `command not found` y el loop se corta sin explicación.
+- `src/cli/run.test.js` — el CLI. Se afirma sobre **lo que imprime**, no sólo sobre el código de retorno: lo lee un modelo, y un mensaje de error que no dice qué hacer deja al agente trabado.
 - `src/main/explorerFs.test.js` — escrituras del explorador sobre disco real: `createEntry`, `renameEntry`, `duplicateEntry`, `resolveEntryPath`. La regresión clave es que ninguna pise trabajo del usuario en silencio (`fs.rename` sí lo haría). Cubre además que `searchFiles` encuentre dotfiles/dotfolders: **el explorador muestra todos los archivos del proyecto a propósito** (decisión de producto), así que el buscador no debe esconder nada — lo único que no se recorre es `SEARCH_IGNORE`, que filtra por carpeta concreta (`.git`, `node_modules`, …), nunca por "empieza con punto".
 
 ## Notas de empaquetado
