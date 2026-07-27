@@ -14,6 +14,7 @@
  */
 import { h } from '../utils/dom.js';
 import { svgIcon } from '../utils/icons.js';
+import { bus } from '../core/eventBus.js';
 import { state } from '../core/state.js';
 import { openModal } from './modal.js';
 import { ProfileManager } from '../core/profileManager.js';
@@ -116,7 +117,13 @@ export function openWorkspaceManager() {
       class: 'inline-flex items-center justify-center w-6 h-6 rounded border border-line hover:border-red-400 hover:bg-red-400/10 hover:text-red-400 text-fg-muted transition',
       title: 'Eliminar tile',
       onClick: async () => {
-        await ProfileManager.removeTile(tile.id);
+        try {
+          await ProfileManager.removeTile(tile.id);
+        } catch (err) {
+          // Terminal protegida por pertenecer a un loop.
+          bus.emit('toast', { type: 'error', message: err?.message || String(err) });
+          return;
+        }
         render();
       },
     }, svgIcon('trash', { size: 13 })));

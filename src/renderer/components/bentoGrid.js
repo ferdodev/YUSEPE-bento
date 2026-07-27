@@ -567,5 +567,13 @@ export async function closeFocusedTile() {
   if (!focusedTileId) return;
   const id = focusedTileId;
   focusedTileId = null;
-  await ProfileManager.removeTile(id);
+  try {
+    await ProfileManager.removeTile(id);
+  } catch (err) {
+    // Terminal protegida por pertenecer a un loop: se devuelve el foco,
+    // que si no el tile queda ahí pero deseleccionado.
+    focusedTileId = id;
+    focusTile(id);
+    bus.emit('toast', { type: 'error', message: err?.message || String(err) });
+  }
 }
