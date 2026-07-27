@@ -10,6 +10,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { h, debounce } from '../utils/dom.js';
 import { bus } from '../core/eventBus.js';
+import { state } from '../core/state.js';
 import * as liveTiles from '../core/liveTiles.js';
 
 /**
@@ -38,6 +39,13 @@ export async function createTerminalTile(tile, profileId) {
   const cached = liveTiles.get(tile.id);
   if (cached) {
     queueMicrotask(() => { try { cached.meta.fit.fit(); } catch { /* noop */ } });
+    // La asociación nombre->pty del loop vive en memoria del proceso main
+    // (el ptyId muere con la terminal, la identidad no), así que hay que
+    // rehacerla al volver a este workspace o el repartidor no sabría a qué
+    // terminal pegarle.
+    if (tile.loopAgent && cached.meta?.ptyId) {
+      window.yusepe.loop.bind(tile.loopAgent, cached.meta.ptyId);
+    }
     return { root: cached.node, shutdown: () => {} };
   }
 
@@ -48,10 +56,29 @@ export async function createTerminalTile(tile, profileId) {
     class: 'absolute inset-0',
   });
 
+  // Badge con el nombre en el loop (@claudio). Sin esto, varias terminales
+  // en la misma carpeta son indistinguibles a simple vista — que es
+  // exactamente el problema cuando hay un loop andando y querés saber quién
+  // es quién. `pointer-events-none` para no robarle clicks a xterm.
+  const badge = h('div', {
+    class: 'absolute top-1 right-1.5 z-10 px-1.5 py-0.5 rounded text-[10px] font-mono '
+      + 'bg-accent/20 text-accent-soft border border-accent/30 pointer-events-none select-none',
+  });
+
+  const paintBadge = (name) => {
+    badge.textContent = name ? `@${name}` : '';
+    badge.classList.toggle('hidden', !name);
+  };
+  paintBadge(tile.loopAgent);
+
+  const offLoop = bus.on('loop:binding-changed', ({ tileId, name }) => {
+    if (tileId === tile.id) paintBadge(name);
+  });
+
   const root = h('div', {
     class: 'tile',
     dataset: { tileId: tile.id, kind: 'terminal' },
-  }, [body]);
+  }, [body, badge]);
 
   let term = null;
   let fit = null;
@@ -78,10 +105,18 @@ export async function createTerminalTile(tile, profileId) {
       term.open(body);
       fit.fit();
 
+      // `agent` hace que el pty nazca con YBENTO_AGENT/YBENTO_ROOT en el
+      // entorno, así el CLI `ybento` ya sabe quién es sin que el agente
+      // tenga que pasar `--as` en cada comando. Ver main/loopShim.js.
       const { ptyId: id } = await window.yusepe.pty.create({
         cols: term.cols,
         rows: term.rows,
         cwd: tile.cwd || undefined,
+        agent: tile.loopAgent || undefined,
+        // La raíz del loop es la del workspace, no la del tile: el tile
+        // puede estar parado en una subcarpeta y `.ybento/loop/` vive en
+        // la raíz del proyecto.
+        loopRoot: state.profile?.cwd || tile.cwd || undefined,
       });
       ptyId = id;
 
@@ -113,8 +148,12 @@ export async function createTerminalTile(tile, profileId) {
       // Registra la terminal como "viva": persiste entre cambios de
       // workspace. Solo `killReal` (borrado del tile o kill de workspace)
       // termina el proceso de verdad.
+      // `term` va en el meta para que la UI pueda mirar lo que hay en
+      // pantalla — el picker del loop muestra la última línea de cada
+      // terminal, que es lo único que las distingue de verdad cuando son
+      // varios shells pelados en la misma carpeta.
       liveTiles.register(tile.id, {
-        profileId, kind: 'terminal', node: root, kill: killReal, meta: { fit, ptyId },
+        profileId, kind: 'terminal', node: root, kill: killReal, meta: { fit, ptyId, term },
       });
     } catch (err) {
       body.innerHTML = `<div class="p-3 text-xs text-fg-muted">
@@ -127,7 +166,7 @@ export async function createTerminalTile(tile, profileId) {
   });
 
   async function killReal() {
-    try { offData?.(); offExit?.(); offTheme?.(); } catch { /* noop */ }
+    try { offData?.(); offExit?.(); offTheme?.(); offLoop?.(); } catch { /* noop */ }
     if (ptyId) { try { window.yusepe.pty.kill(ptyId); } catch { /* noop */ } ptyId = null; }
     term?.dispose();
     term = null;
