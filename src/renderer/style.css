@@ -256,11 +256,12 @@
     }
   }
 
-  /* ---- Handle de redimensionado del panel de archivos (estilo VSCode) ---- */
-  .file-tree-resize-handle {
+  /* ---- Handle de redimensionado de paneles laterales (estilo VSCode) ----
+     Sirve para los dos bordes: `data-edge` dice de qué lado va el handle,
+     que es el borde "interior" del panel. Ver utils/resizableSidebar.js. */
+  .sidebar-resize-handle {
     position: absolute;
     top: 0;
-    right: 0;
     bottom: 0;
     width: 6px;
     z-index: 5;
@@ -269,10 +270,18 @@
     background: transparent;
     transition: background 0.12s;
   }
-  .file-tree-resize-handle:hover,
-  body.resizing-sidebar .file-tree-resize-handle {
+  .sidebar-resize-handle[data-edge='right'] { right: 0; }
+  .sidebar-resize-handle[data-edge='left'] { left: 0; }
+
+  .sidebar-resize-handle[data-edge='right']:hover,
+  body.resizing-sidebar .sidebar-resize-handle[data-edge='right'] {
     background: linear-gradient(to right, transparent, rgba(var(--color-accent-rgb), 0.5));
   }
+  .sidebar-resize-handle[data-edge='left']:hover,
+  body.resizing-sidebar .sidebar-resize-handle[data-edge='left'] {
+    background: linear-gradient(to left, transparent, rgba(var(--color-accent-rgb), 0.5));
+  }
+
   /* Mientras se arrastra: cursor global + sin selección + los webviews
      dejan de capturar el puntero (si no, el drag se "pega" al pasar sobre
      un tile de webview, igual que en el drag de tiles). */
@@ -285,8 +294,20 @@
   }
   /* Sin animación de slide mientras se redimensiona, para que el ancho
      responda 1:1 al mouse. */
-  body.resizing-sidebar #file-tree-sidebar {
+  body.resizing-sidebar #file-tree-sidebar,
+  body.resizing-sidebar #loop-sidebar {
     transition: none;
+  }
+
+  /* ---- Mensajes largos del loop, colapsados ----
+     Los reportes de QA entre agentes son enormes y necesarios, pero
+     apilados hacen imposible seguir la conversación. El degradado avisa
+     que hay más abajo sin necesidad de leer el botón. */
+  .loop-msg-clamp {
+    max-height: 11rem;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
   }
 
   /* ---- Toasts (notificaciones no-bloqueantes) ---- */

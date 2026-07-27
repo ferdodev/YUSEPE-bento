@@ -26,6 +26,7 @@ import { openCommandPalette } from './components/commandPalette.js';
 import { openQuickOpenFile } from './components/quickOpenFile.js';
 import { openShortcutsCheatsheet } from './components/shortcutsCheatsheet.js';
 import { initSnippetsSidebar, toggleSnippetsSidebar } from './components/snippetsSidebar.js';
+import { initLoopSidebar, toggleLoopSidebar } from './components/loopSidebar.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -36,7 +37,7 @@ const bento = $('#bento');
 const backBtn = $('#btn-back-profiles');
 const workspaceTabsEl = $('#workspace-tabs');
 
-const ADD_BTN_IDS = ['btn-add-to-space', 'btn-toggle-explorer', 'btn-git', 'btn-agents', 'btn-workspace-manager', 'btn-toggle-snippets'];
+const ADD_BTN_IDS = ['btn-add-to-space', 'btn-toggle-explorer', 'btn-git', 'btn-agents', 'btn-workspace-manager', 'btn-toggle-snippets', 'btn-toggle-loop'];
 
 /** Abre el picker nativo de carpeta. Devuelve la ruta o null si se canceló. */
 async function pickFolder() {
@@ -390,9 +391,20 @@ async function closeWorkspaceTab(profileId, name, isActive) {
   // Solo confirmamos si hay procesos vivos que matar; cerrar un tab sin
   // nada corriendo no destruye nada, no vale interrumpir.
   if (count) {
+    // Cerrar el workspace entero SÍ puede matar terminales de un loop —
+    // a diferencia de borrar un tile suelto, acá es un acto deliberado
+    // sobre todo el espacio. No se bloquea, pero se avisa: un loop a
+    // medias es lo que uno menos quiere cortar sin querer.
+    const inLoop = (state.profile?.id === profileId ? state.profile.tiles || [] : [])
+      .filter((t) => t.loopAgent)
+      .map((t) => `@${t.loopAgent}`);
+
     const confirmed = await confirmModal({
       title: 'Cerrar workspace',
-      body: `¿Cerrar "${name}"? Esto terminará ${count} tile(s) (terminales y/o webviews con procesos en ejecución).`,
+      body: `¿Cerrar "${name}"? Esto terminará ${count} tile(s) (terminales y/o webviews con procesos en ejecución).`
+        + (inLoop.length
+          ? ` Incluye ${inLoop.length} terminal(es) que están en el loop: ${inLoop.join(', ')}.`
+          : ''),
       confirmLabel: 'Cerrar',
       danger: true,
     });
@@ -454,6 +466,7 @@ $('#btn-git').addEventListener('click', openGitPanel);
 $('#btn-agents').addEventListener('click', openAgentPanel);
 $('#btn-workspace-manager').addEventListener('click', openWorkspaceManager);
 $('#btn-toggle-snippets').addEventListener('click', toggleSnippetsSidebar);
+$('#btn-toggle-loop').addEventListener('click', toggleLoopSidebar);
 
 /* ---------- Menu accelerators (globales) ---------- */
 
@@ -549,6 +562,7 @@ bus.on('calc:result', ({ value }) => {
   initTheme();
   initFileTreeSidebar();
   initSnippetsSidebar();
+  initLoopSidebar();
   await refreshProfileSelect();
   showView();
   renderWorkspaceTabs();

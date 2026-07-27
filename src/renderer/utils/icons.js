@@ -50,6 +50,8 @@ const PATHS = {
   collapse: '<path d="M7 20l5-5 5 5M7 4l5 5 5-5"/>',
   tasks: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.4 1.4L7.5 4.8M3.5 12l1.4 1.4 2.6-2.6M3.5 18l1.4 1.4 2.6-2.6"/>',
   copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  loop: '<path d="M4 9a4 4 0 0 1 4-4h8a4 4 0 0 1 0 8H8a4 4 0 0 0 0 8h8a4 4 0 0 0 4-4"/><path d="M7 6 4 9l3 3M17 15l3 3-3 3"/>',
+  send: '<path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4z"/>',
 };
 
 /** String del <svg> — para insertar en templates/innerHTML. */
