@@ -52,6 +52,52 @@ const WIDTH_OPTS = {
 const LONG_MESSAGE_CHARS = 420;
 
 /**
+ * Colores de identidad. Se eligen a mano en el editor del agente y sirven
+ * para una sola cosa: distinguir de un vistazo quién habló en el hilo.
+ *
+ * Ningún verde, ámbar ni rojo puro a propósito — esos tres ya significan
+ * algo en el roster (libre / ocupado / caído) y reusarlos como identidad
+ * haría que un agente "se vea caído" por su color.
+ */
+const PALETTE = [
+  '#4aa3f0', // azul
+  '#a78bfa', // violeta
+  '#f472b6', // rosa
+  '#22d3ee', // cian
+  '#fb923c', // naranja
+  '#2dd4bf', // turquesa
+  '#e879f9', // fucsia
+  '#94a3b8', // gris
+];
+
+/**
+ * Color de un agente: el que eligió, o uno derivado de su nombre.
+ *
+ * El fallback derivado evita la migración: los agentes que ya estaban en el
+ * loop antes de que esto existiera se ven distintos desde el primer render,
+ * sin tener que abrir el editor de cada uno. Es estable porque depende sólo
+ * del nombre, así que el color de @dev es el mismo en cada workspace.
+ */
+/**
+ * Rol recortado para usar en un tooltip.
+ *
+ * Desde que el rol es un textarea la gente escribe prompts de varios
+ * párrafos ahí, y un tooltip con eso adentro tapa media pantalla.
+ */
+function clampRole(role, max = 160) {
+  const text = String(role || '').trim();
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
+function colorOf(agent) {
+  if (agent?.color) return agent.color;
+  const name = agent?.name || '';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return PALETTE[hash % PALETTE.length];
+}
+
+/**
  * Mensajes que el usuario desplegó a mano.
  *
  * Vive fuera del render porque `refresh()` redibuja el hilo completo cada
@@ -264,14 +310,27 @@ function agentRow(agent, presence) {
     subtitle = h('div', { class: 'text-[10px] text-fg-subtle/60 italic truncate' }, 'sin rol descrito');
   }
 
+  // Mismo borde de color que sus burbujas en el hilo: es lo que enseña qué
+  // color es de quién, sin necesidad de una leyenda aparte.
+  const tint = colorOf(agent);
+
   return h('div', {
-    class: 'group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-bg-elev transition cursor-pointer',
-    title: tile ? 'Ir a su terminal' : 'Su terminal ya no está en este workspace',
+    class: 'group flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-md hover:bg-bg-elev transition cursor-pointer',
+    style: `border-left: 3px solid ${tint}`,
+    // El rol se ve cortado a una línea en la fila, así que el tooltip es el
+    // único lugar donde se puede leer sin abrir el editor.
+    title: [
+      clampRole(agent.role),
+      tile ? 'Ir a su terminal' : 'Su terminal ya no está en este workspace',
+    ].filter(Boolean).join('\n\n'),
     onClick: () => { if (tile) focusTileById(tile.id); },
   }, [
     stateDot(agent, presence),
     h('div', { class: 'flex-1 min-w-0' }, [
-      h('div', { class: 'text-xs text-fg truncate' }, `@${agent.name}`),
+      h('div', {
+        class: 'text-xs truncate font-medium',
+        style: `color: color-mix(in srgb, ${tint} 75%, var(--color-fg))`,
+      }, `@${agent.name}`),
       subtitle,
     ]),
     h('div', { class: 'hidden group-hover:flex gap-0.5 shrink-0' }, [
@@ -319,13 +378,17 @@ function renderStream(messages, agents) {
   }
   emptyEl.classList.add('hidden');
 
-  for (const msg of messages) streamEl.append(messageRow(msg));
+  // El color es el del *emisor*: lo que se busca al barrer el hilo con la
+  // vista es "qué dijo @qa", no a quién se lo dijo.
+  const colors = Object.fromEntries(agents.map((a) => [a.name, colorOf(a)]));
+
+  for (const msg of messages) streamEl.append(messageRow(msg, colors));
   if (atBottom) {
     queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
   }
 }
 
-function messageRow(msg) {
+function messageRow(msg, colors = {}) {
   const mine = msg.from === 'usuario';
   const forMe = msg.to === 'usuario';
 
@@ -335,16 +398,32 @@ function messageRow(msg) {
 
   const body = h('div', { class: 'text-xs text-fg whitespace-pre-wrap break-words' }, msg.text);
 
-  const parts = [
-    h('div', { class: 'text-[10px] text-fg-subtle mb-0.5 flex items-center gap-1' }, [
-      h('span', { class: 'truncate' }, who),
-      h('span', { class: 'text-fg-subtle/60 shrink-0' }, formatTime(msg.createdAt)),
-    ]),
-    body,
-  ];
+  // El nombre del emisor va en su color; el resto del encabezado queda
+  // apagado. Así el color aparece dos veces (borde y nombre) y se aprende
+  // solo a quién pertenece sin tener que ir al roster.
+  const tint = mine ? null : colors[msg.from];
+  const header = h('div', { class: 'text-[10px] text-fg-subtle mb-0.5 flex items-center gap-1' }, [
+    h('span', { class: 'truncate' }, tint
+      ? [h('span', {
+        class: 'font-semibold',
+        // Mezclado hacia --color-fg: en tema oscuro eso aclara el color y
+        // en claro lo oscurece, así el nombre se lee en los dos sin tener
+        // que mantener dos paletas.
+        style: `color: color-mix(in srgb, ${tint} 75%, var(--color-fg))`,
+      }, `@${msg.from}`),
+      forMe ? ' → vos' : ` → @${msg.to}`]
+      : who),
+    h('span', { class: 'text-fg-subtle/60 shrink-0' }, formatTime(msg.createdAt)),
+  ]);
+
+  const parts = [header, body];
 
   if (msg.text.length > LONG_MESSAGE_CHARS) parts.push(collapseToggle(msg, body));
 
+  // Borde izquierdo grueso + un lavado del mismo color sobre el fondo del
+  // tile. Se tiñe el fondo y no el texto porque estos mensajes son reportes
+  // largos: el texto tiene que seguir leyéndose con el contraste de siempre,
+  // en tema claro y oscuro.
   const bubble = h('div', {
     class: [
       'max-w-[85%] rounded-lg px-2.5 py-1.5 border',
@@ -352,6 +431,9 @@ function messageRow(msg) {
         ? 'bg-accent/15 border-accent/30'
         : (forMe ? 'bg-bg-elev border-accent/20' : 'bg-bg-elev border-line'),
     ].join(' '),
+    style: tint
+      ? `border-left: 3px solid ${tint}; background: color-mix(in srgb, ${tint} 10%, var(--color-bg-elev));`
+      : null,
   }, parts);
 
   return h('div', { class: `flex ${mine ? 'justify-end' : 'justify-start'}` }, [bubble]);
@@ -424,9 +506,14 @@ function renderComposer(agents) {
         'text-[10px] px-1.5 py-0.5 rounded-full border transition',
         agent.name === target
           ? 'bg-accent/20 border-accent/40 text-fg'
-          : 'border-line text-fg-muted hover:bg-bg-elev',
+          : 'border-line hover:bg-bg-elev',
       ].join(' '),
-      title: agent.role || `Escribirle a @${agent.name}`,
+      // Mismo color que sus burbujas, salvo cuando es el destino elegido:
+      // ahí manda el accent, que es lo que marca la selección.
+      style: agent.name === target
+        ? null
+        : `color: color-mix(in srgb, ${colorOf(agent)} 75%, var(--color-fg))`,
+      title: clampRole(agent.role) || `Escribirle a @${agent.name}`,
       onClick: () => {
         target = agent.name;
         renderComposer(agents);
@@ -563,14 +650,16 @@ async function openAddAgent() {
 
   // Con una sola candidata no tiene sentido hacer elegir: se va derecho al
   // formulario que importa (nombre y rol).
+  const taken = agents.map(colorOf);
+
   if (candidates.length === 1) {
-    openAgentEditor(null, candidates[0]);
+    openAgentEditor(null, candidates[0], taken);
     return;
   }
 
   const list = h('div', { class: 'space-y-1' }, candidates.map((tile) => h('button', {
     class: 'w-full text-left px-3 py-2 rounded-md border border-line hover:bg-bg-elev transition flex items-center gap-3',
-    onClick: () => { closeModal(); openAgentEditor(null, tile); },
+    onClick: () => { closeModal(); openAgentEditor(null, tile, taken); },
   }, [
     miniMap(tile),
     h('div', { class: 'flex-1 min-w-0' }, [
@@ -598,19 +687,50 @@ async function openAddAgent() {
  * leen para saber a quién dirigirse, así que el formulario lo pide con un
  * ejemplo en vez de dejarlo como un campo opcional cualquiera.
  */
-function openAgentEditor(existing, tile) {
+function openAgentEditor(existing, tile, taken = []) {
   const nameInput = h('input', {
     type: 'text',
     value: existing?.name || '',
     placeholder: 'claudio',
     class: 'w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm mb-1 focus:outline-none focus:ring-1 focus:ring-accent',
   });
-  const roleInput = h('input', {
-    type: 'text',
-    value: existing?.role || '',
+  // Textarea y no input: el rol terminó siendo el prompt del agente ("sos un
+  // dev que recibe requerimientos del TL…"), y en una línea no se puede ni
+  // releer lo que se escribió. `resize-y` porque hay roles de dos renglones
+  // y otros de quince.
+  const roleInput = h('textarea', {
+    rows: '5',
     placeholder: 'codifica y gestiona archivos',
-    class: 'w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm mb-1 focus:outline-none focus:ring-1 focus:ring-accent',
+    class: 'w-full bg-bg-elev border border-line rounded-md px-3 py-2 text-sm mb-1 leading-relaxed '
+      + 'resize-y min-h-[4.5rem] focus:outline-none focus:ring-1 focus:ring-accent',
+    spellcheck: 'false',
   });
+  roleInput.value = existing?.role || '';
+
+  // Color de identidad. Editando, arranca en el que ya se ve en el hilo (el
+  // suyo o el derivado de su nombre). Dando de alta no hay nombre todavía
+  // del cual derivarlo, así que se propone el primer color de la paleta que
+  // no esté usando otro agente — que es justo el punto de tener colores.
+  let color = existing
+    ? colorOf(existing)
+    : (PALETTE.find((c) => !taken.includes(c)) || PALETTE[0]);
+
+  const swatches = h('div', { class: 'flex flex-wrap gap-1.5 mb-1' });
+  const paintSwatches = () => {
+    swatches.innerHTML = '';
+    for (const option of PALETTE) {
+      const active = option === color;
+      swatches.append(h('button', {
+        class: `w-7 h-7 rounded-full border-2 transition ${
+          active ? 'border-fg scale-110' : 'border-transparent hover:border-line'}`,
+        style: `background: ${option}`,
+        title: active ? 'Color actual' : 'Usar este color',
+        onClick: () => { color = option; paintSwatches(); },
+      }));
+    }
+  };
+  paintSwatches();
+
   const error = h('div', { class: 'text-xs text-red-400 mt-2 hidden' });
 
   const save = async () => {
@@ -629,7 +749,7 @@ function openAgentEditor(existing, tile) {
       }
 
       await window.yusepe.loop.register(cwd(), {
-        name, role: roleInput.value.trim(), tileId: tile?.id || existing?.tileId || null,
+        name, role: roleInput.value.trim(), tileId: tile?.id || existing?.tileId || null, color,
       });
       // El protocolo tiene que existir antes del primer mensaje: es la ruta
       // que el repartidor le pasa al agente al pegarle en la terminal.
@@ -648,7 +768,14 @@ function openAgentEditor(existing, tile) {
   };
 
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') roleInput.focus(); });
-  roleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  // En el textarea Enter tiene que hacer salto de línea — es un prompt de
+  // varios renglones, no un campo. Guardar pasa a Cmd/Ctrl+Enter.
+  roleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      save();
+    }
+  });
 
   openModal({
     title: existing ? `Editar @${existing.name}` : 'Sumar terminal al loop',
@@ -662,7 +789,14 @@ function openAgentEditor(existing, tile) {
       roleInput,
       h('p', { class: 'text-[10px] text-fg-subtle/70 mb-3' },
         'Qué se encarga de hacer. Lo leen los otros agentes para saber a quién dirigirse, '
-        + 'así que conviene ser concreto: "valida código fuente" dice más que "ayudante".'),
+        + 'así que conviene ser concreto: "valida código fuente" dice más que "ayudante". '
+        + 'Cmd/Ctrl+Enter para guardar.'),
+
+      h('label', { class: 'text-xs text-fg-subtle block mb-1' }, 'Color'),
+      swatches,
+      h('p', { class: 'text-[10px] text-fg-subtle/70 mb-3' },
+        'Con qué color se marcan sus mensajes en el hilo. Es sólo para distinguirlos de un '
+        + 'vistazo — los agentes no lo ven.'),
 
       error,
       h('button', {

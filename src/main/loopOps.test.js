@@ -91,6 +91,32 @@ describe('registro de agentes', () => {
     expect((await listAgents(cwd)).map((a) => a.name)).toEqual(['opencito']);
   });
 
+  // El color se pinta con un `style` inline en el panel, así que un valor
+  // arbitrario en status.json sería inyección de CSS. status.json vive dentro
+  // del proyecto y lo tocan tanto el usuario como los agentes, así que no
+  // alcanza con validar al escribir: el camino de lectura tampoco confía.
+  it('guarda el color sólo si es un hex, y lo conserva al reeditar el rol', async () => {
+    const agent = await registerAgent(cwd, { name: 'claudio', color: '#4AA3F0' });
+    expect(agent.color).toBe('#4aa3f0');
+
+    await registerAgent(cwd, { name: 'claudio', role: 'otro rol' });
+    expect((await getAgent(cwd, 'claudio')).color).toBe('#4aa3f0');
+
+    for (const junk of ['red', 'url(x)', '#fff', '#4aa3f0; background: url(evil)', '']) {
+      await registerAgent(cwd, { name: 'malo', color: junk });
+      expect((await getAgent(cwd, 'malo')).color).toBeNull();
+    }
+  });
+
+  it('un color escrito a mano en status.json se descarta al leer', async () => {
+    await registerAgent(cwd, { name: 'claudio' });
+    const raw = JSON.parse(await fs.readFile(path.join(cwd, STATUS_FILE), 'utf8'));
+    raw.agents.claudio.color = '#000; position: fixed; inset: 0';
+    await fs.writeFile(path.join(cwd, STATUS_FILE), JSON.stringify(raw), 'utf8');
+
+    expect((await listAgents(cwd))[0].color).toBeNull();
+  });
+
   it('un status.json corrupto no deja al loop sin agentes', async () => {
     await setupAgents();
     await fs.writeFile(path.join(cwd, STATUS_FILE), '{ roto', 'utf8');

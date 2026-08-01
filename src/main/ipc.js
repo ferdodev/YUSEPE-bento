@@ -343,8 +343,8 @@ export function registerIpc({ app, profilesDir }) {
     if (!entry) return false;
     return looksLikeShell({ process: entry.proc.process, shell: entry.shell });
   });
-  ipcMain.handle('loop:register', (_e, { cwd, name, role, tileId }) =>
-    loopOps.registerAgent(cwd, { name, role, tileId }));
+  ipcMain.handle('loop:register', (_e, { cwd, name, role, tileId, color }) =>
+    loopOps.registerAgent(cwd, { name, role, tileId, color }));
   ipcMain.handle('loop:unregister', (_e, { cwd, name }) => {
     dispatcher.unbind(name);
     return loopOps.unregisterAgent(cwd, name);

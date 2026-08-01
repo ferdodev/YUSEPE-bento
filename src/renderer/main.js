@@ -17,6 +17,7 @@ import { toast } from './components/toast.js';
 import { h } from './utils/dom.js';
 import { svgIcon } from './utils/icons.js';
 import { initTheme } from './core/theme.js';
+import { initTooltips } from './core/tooltip.js';
 import * as liveTiles from './core/liveTiles.js';
 import { initFileTreeSidebar, toggleFileTreeSidebar } from './components/fileTreeSidebar.js';
 import { openGitPanel } from './components/gitPanel.js';
@@ -560,6 +561,7 @@ bus.on('calc:result', ({ value }) => {
     });
   }
   initTheme();
+  initTooltips();
   initFileTreeSidebar();
   initSnippetsSidebar();
   initLoopSidebar();

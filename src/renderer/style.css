@@ -10,7 +10,19 @@
 /*
   Paleta nativa-macOS. Neutros con leve sesgo frío (superficies elevadas
   tipo systemGray, no negro puro), accent = azul de sistema de Apple.
-  --color-accent-rgb permite componer sombras/hover translúcidos.
+
+  Las variables `*-rgb` son los canales sueltos, para componer un color con
+  opacidad: `rgb(var(--color-accent-rgb) / 0.2)`. Van **separadas por
+  espacio y no por coma**, y no es cosmético: `rgb()` no deja mezclar las
+  dos notaciones, así que `rgb(10, 132, 255 / 1)` es inválido y el
+  navegador descarta la declaración entera. Eso es exactamente lo que
+  pasaba antes — `bg-accent` (que Tailwind genera con esa forma, ver
+  tailwind.config.js) no pintaba nada, y en tema claro los botones
+  primarios quedaban con texto blanco sobre fondo blanco: invisibles
+  hasta que el hover los rescataba con otra regla.
+
+  Si agregás una variable `*-rgb`, va sin comas, y para consumirla usá
+  `rgb(var(--x) / a)` — nunca `rgba(var(--x), a)`.
 */
 :root,
 :root[data-theme='dark'] {
@@ -23,14 +35,14 @@
   --color-fg-muted: #98989f;
   --color-fg-subtle: #6a6a72;
   --color-tile-bg: #29292e;
-  --color-tile-bg-rgb: 41, 41, 46;
+  --color-tile-bg-rgb: 41 41 46;
   --color-tile-border: rgba(255, 255, 255, 0.09);
   --color-term-bg: #161619;
-  --color-term-bg-rgb: 22, 22, 25;
+  --color-term-bg-rgb: 22 22 25;
   --color-term-fg: #e6e6ea;
   --color-accent: #0a84ff;
   --color-accent-soft: #409cff;
-  --color-accent-rgb: 10, 132, 255;
+  --color-accent-rgb: 10 132 255;
   --color-term-cursor: #0a84ff;
   --color-term-selection: #14375f;
   color-scheme: dark;
@@ -46,14 +58,14 @@
   --color-fg-muted: #6b6b70;
   --color-fg-subtle: #9a9aa0;
   --color-tile-bg: #ffffff;
-  --color-tile-bg-rgb: 255, 255, 255;
+  --color-tile-bg-rgb: 255 255 255;
   --color-tile-border: rgba(0, 0, 0, 0.10);
   --color-term-bg: #1e1e22;
-  --color-term-bg-rgb: 30, 30, 34;
+  --color-term-bg-rgb: 30 30 34;
   --color-term-fg: #e6e6ea;
   --color-accent: #007aff;
   --color-accent-soft: #4a9eff;
-  --color-accent-rgb: 0, 122, 255;
+  --color-accent-rgb: 0 122 255;
   --color-term-cursor: #007aff;
   --color-term-selection: #cfe4ff;
   color-scheme: light;
@@ -192,14 +204,6 @@
   #topbar [role='button'] {
     -webkit-app-region: no-drag;
   }
-  /* "Agregar" = acción primaria: fondo accent sólido + texto blanco en
-     ambos temas. Regla por id (especificidad mayor) para no depender de la
-     utilidad bg-accent, que en tema claro quedaba sin pintar el fondo y
-     dejaba el texto blanco ilegible sobre la topbar clara. */
-  #btn-add-to-space {
-    background-color: var(--color-accent);
-    color: #fff;
-  }
   /* En macOS con titleBarStyle:hiddenInset, los semáforos ocupan el
      extremo izquierdo de la topbar: se reserva ese espacio. */
   body.platform-darwin #topbar {
@@ -275,11 +279,11 @@
 
   .sidebar-resize-handle[data-edge='right']:hover,
   body.resizing-sidebar .sidebar-resize-handle[data-edge='right'] {
-    background: linear-gradient(to right, transparent, rgba(var(--color-accent-rgb), 0.5));
+    background: linear-gradient(to right, transparent, rgb(var(--color-accent-rgb) / 0.5));
   }
   .sidebar-resize-handle[data-edge='left']:hover,
   body.resizing-sidebar .sidebar-resize-handle[data-edge='left'] {
-    background: linear-gradient(to left, transparent, rgba(var(--color-accent-rgb), 0.5));
+    background: linear-gradient(to left, transparent, rgb(var(--color-accent-rgb) / 0.5));
   }
 
   /* Mientras se arrastra: cursor global + sin selección + los webviews
@@ -333,7 +337,7 @@
      parcialmente transparentes para dejarlo ver (estilo Warp). Sin
      wallpaper, --term-tile-opacity queda en 1 (sin cambios). */
   .tile[data-kind='terminal'] {
-    background: rgba(var(--color-tile-bg-rgb), var(--term-tile-opacity, 1));
+    background: rgb(var(--color-tile-bg-rgb) / var(--term-tile-opacity, 1));
   }
 
   /* Mientras se arrastra (mover/redimensionar), los <webview> ignoran
@@ -372,7 +376,7 @@
     justify-content: center;
     font-size: 14px;
     color: rgba(255, 255, 255, 0.25);
-    background: linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.14) 0%, transparent 80%);
+    background: linear-gradient(135deg, rgb(var(--color-accent-rgb) / 0.14) 0%, transparent 80%);
     border-bottom-right-radius: 6px;
     opacity: 0;
     transition: opacity 0.15s;
@@ -394,7 +398,7 @@
     cursor: ew-resize;
   }
   .tile-handle-r:hover {
-    background: rgba(var(--color-accent-rgb), 0.28);
+    background: rgb(var(--color-accent-rgb) / 0.28);
   }
 
   /* Bottom edge */
@@ -408,7 +412,7 @@
     cursor: ns-resize;
   }
   .tile-handle-b:hover {
-    background: rgba(var(--color-accent-rgb), 0.28);
+    background: rgb(var(--color-accent-rgb) / 0.28);
   }
 
   /* Bottom-right corner */
@@ -422,7 +426,7 @@
     cursor: nwse-resize;
   }
   .tile-handle-br:hover {
-    background: rgba(var(--color-accent-rgb), 0.32);
+    background: rgb(var(--color-accent-rgb) / 0.32);
     border-top-left-radius: 4px;
   }
 
@@ -500,4 +504,30 @@
   .hljs-deletion { color: #f0796a; }
   .hljs-emphasis { font-style: italic; }
   .hljs-strong { font-weight: 700; }
+
+  /* ---- Tooltips (core/tooltip.js) ----
+     Un único nodo reposicionado con `transform`, siempre en el DOM: así
+     se puede medir antes de mostrarlo y el navegador no rehace layout en
+     cada hover. z-index por encima de los modales (z-50) y de los
+     paneles laterales (z-40). */
+  .app-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    max-width: 20rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-line);
+    background: var(--color-bg-elev);
+    color: var(--color-fg-soft);
+    font-size: 0.7rem;
+    line-height: 1.35;
+    white-space: pre-line;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+  .app-tooltip.is-visible { opacity: 1; }
 }

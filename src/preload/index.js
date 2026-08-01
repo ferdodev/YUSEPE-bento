@@ -114,8 +114,8 @@ contextBridge.exposeInMainWorld('yusepe', {
   // sale sólo lo que necesita la UI del panel de mensajes.
   loop: {
     agents: (cwd) => ipcRenderer.invoke('loop:agents', { cwd }),
-    register: (cwd, { name, role, tileId }) =>
-      ipcRenderer.invoke('loop:register', { cwd, name, role, tileId }),
+    register: (cwd, { name, role, tileId, color }) =>
+      ipcRenderer.invoke('loop:register', { cwd, name, role, tileId, color }),
     unregister: (cwd, name) => ipcRenderer.invoke('loop:unregister', { cwd, name }),
     setState: (cwd, name, state) => ipcRenderer.invoke('loop:set-state', { cwd, name, state }),
 

@@ -214,11 +214,13 @@ export function openWorkspaceManager() {
     td.append(h('div', { class: 'flex items-center gap-1' }, [
       h('button', {
         class: 'w-6 h-6 rounded border border-line hover:bg-bg-elev text-xs leading-none',
+        title: 'Alejar (achica el contenido del tile)',
         onClick: () => setZoom(factor - ZOOM_STEP),
       }, '－'),
       label,
       h('button', {
         class: 'w-6 h-6 rounded border border-line hover:bg-bg-elev text-xs leading-none',
+        title: 'Acercar (agranda el contenido del tile)',
         onClick: () => setZoom(factor + ZOOM_STEP),
       }, '＋'),
       h('button', {

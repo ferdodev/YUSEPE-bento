@@ -149,6 +149,20 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
     olvida queda incomunicado y su bandeja se frena, y el olvido aparece
     justo cuando la iteración se pone larga. Enviar es, en el protocolo,
     lo que hacés al terminar el turno.
+  - **Color de identidad por agente.** El hilo es grupal y todas las burbujas
+    se veían iguales: con reportes de QA de 30 líneas, el único distintivo era
+    el `@x → @y` de 10px. Cada agente tiene un `color` (`#rrggbb`) que le pinta
+    el borde izquierdo y un lavado del fondo de sus mensajes. Tres detalles que
+    no son cosméticos: (a) el color **se valida como hex en `loopOps`, al
+    escribir y al leer** — va a un `style` inline y `status.json` es un archivo
+    del proyecto que editan a mano el usuario y los agentes, así que un string
+    libre sería inyección de CSS; (b) si no hay color elegido se **deriva del
+    nombre**, y por eso no hizo falta migrar nada ni tocar los agentes ya
+    registrados; (c) la paleta **no tiene verde, ámbar ni rojo**, que ya
+    significan libre/ocupado/caído en el roster — un agente no puede "verse
+    caído" por su color. Se tiñe el fondo y no el texto: son reportes largos y
+    el contraste de lectura no se negocia (el nombre, que sí va coloreado, se
+    mezcla hacia `--color-fg` para servir en tema claro y oscuro).
   - **Cruces**: cada mensaje guarda `seenUpTo` (hasta dónde había leído
     quien lo escribió) y al leer se le calcula un `seq` por posición en el
     archivo — no se persiste, porque repartir números con N escritores
@@ -265,6 +279,16 @@ tres, así que el fallo de su `electron-rebuild` en CI es tolerado.
 - `core/pexels.js` — wrapper delgado sobre `window.yusepe.pexels.search`
   para `components/wallpaperPicker.js`; la búsqueda real (y la API key)
   vive en `main/pexelsOps.js`, no acá.
+- `core/tooltip.js` — tooltips de toda la app: **un** listener delegado en
+  `document` y **un** nodo reutilizado. No se importa desde los componentes:
+  se apodera del atributo `title` (lo mueve a `data-tip` en el hover y lo
+  saca, así no salen los dos tooltips). Poner `title` sigue siendo la única
+  API, y como el robo pasa en el hover funciona igual con DOM creado
+  después — tiles, filas del explorador, mensajes del loop. El nativo de
+  Chromium se reemplazó porque tarda ~1.5s y usa el estilo del SO: los devs
+  de la beta directamente no lo veían. Opt-out con `data-no-tip` para texto
+  que ya se ve en pantalla. Sin test: haría falta jsdom (hoy `environment:
+  'node'`) y no vale una dependencia nueva — se verifica a mano.
 - `core/codeHighlight.js` — highlight.js "core" build con lenguajes
   elegidos a mano (no el paquete completo), usado por el preview del
   explorador y por bloques de código en Markdown renderizado.

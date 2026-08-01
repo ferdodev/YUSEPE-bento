@@ -149,6 +149,18 @@ async function updateStatus(cwd, mutate) {
 }
 
 /**
+ * Color de identidad del agente: `#rrggbb` o nada.
+ *
+ * Se valida acá y no en el panel porque el renderer lo mete en un `style`
+ * inline para pintar sus mensajes — un string arbitrario en `status.json`
+ * (que es un archivo que el usuario y los agentes pueden editar a mano)
+ * se convertiría en inyección de CSS. Cualquier cosa que no sea un hex se
+ * descarta y el agente se queda con el color derivado de su nombre.
+ */
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const safeColor = (value) => (HEX_COLOR.test(String(value || '')) ? String(value).toLowerCase() : null);
+
+/**
  * Registra (o actualiza) una terminal en el loop.
  *
  * `role` es la descripción corta que explica de qué se encarga — la leen
@@ -158,7 +170,7 @@ async function updateStatus(cwd, mutate) {
  * Registrar de nuevo un agente existente conserva su estado y su cursor:
  * renombrar el rol no debe reenviarle toda la bandeja.
  */
-export async function registerAgent(cwd, { name, role = '', tileId = null } = {}) {
+export async function registerAgent(cwd, { name, role = '', tileId = null, color = null } = {}) {
   const id = normalizeName(name);
   return updateStatus(cwd, (status) => {
     const prev = status.agents[id] || {};
@@ -167,6 +179,7 @@ export async function registerAgent(cwd, { name, role = '', tileId = null } = {}
       role: String(role || prev.role || '').trim(),
       state: STATES.includes(prev.state) ? prev.state : 'waiting',
       tileId: tileId ?? prev.tileId ?? null,
+      color: safeColor(color) ?? safeColor(prev.color),
       cursor: prev.cursor ?? null,
       updatedAt: new Date().toISOString(),
     };
@@ -183,11 +196,18 @@ export async function unregisterAgent(cwd, name) {
   });
 }
 
-/** Todos los agentes del loop, ordenados por nombre. */
+/**
+ * Todos los agentes del loop, ordenados por nombre.
+ *
+ * El color se vuelve a sanear acá: `registerAgent` ya lo valida al escribir,
+ * pero `status.json` es un archivo del proyecto que se edita a mano, así que
+ * el camino de lectura no puede confiar en lo que haya en disco.
+ */
 export async function listAgents(cwd) {
   const status = await readStatusRaw(cwd);
   return Object.values(status.agents)
     .filter((a) => a && typeof a.name === 'string')
+    .map((a) => ({ ...a, color: safeColor(a.color) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

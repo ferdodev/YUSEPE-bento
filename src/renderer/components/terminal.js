@@ -23,7 +23,12 @@ function readTermTheme() {
   const style = getComputedStyle(document.documentElement);
   const v = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
   const opacity = parseFloat(v('--term-tile-opacity', '1')) || 1;
-  const bgRgb = v('--color-term-bg-rgb', '22, 22, 25');
+  // Ojo: este color NO lo parsea el navegador, lo parsea xterm con su propio
+  // regex, y ese sólo acepta la forma con comas: `rgba(r, g, b, a)`. Un
+  // `rgb(r g b / a)` moderno —que es como se consumen estas variables desde
+  // CSS— xterm no lo entiende y cae al fondo opaco, así que la terminal deja
+  // de dejar ver el wallpaper. Los canales se normalizan a comas acá.
+  const bgRgb = v('--color-term-bg-rgb', '22 22 25').split(/[\s,]+/).filter(Boolean).join(', ');
   return {
     background: opacity < 1 ? `rgba(${bgRgb}, ${opacity})` : v('--color-term-bg', '#161619'),
     foreground: v('--color-term-fg', '#e6e6ea'),
@@ -104,6 +109,27 @@ export async function createTerminalTile(tile, profileId) {
       term.loadAddon(fit);
       term.open(body);
       fit.fit();
+
+      // Copiar/pegar con Ctrl+Shift+C/V (Windows y Linux): ahí Ctrl+C es
+      // SIGINT, así que el atajo del menú (CmdOrCtrl+C) no sirve para copiar
+      // — y de hecho se lo tiene prohibido registrar fuera de macOS, ver
+      // main/index.js. xterm no trae ningún atajo de portapapeles propio.
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey) return true;
+        const k = e.key.toLowerCase();
+        if (k === 'c') {
+          const sel = term.getSelection();
+          if (sel) window.yusepe.clipboard.writeText(sel);
+        } else if (k === 'v') {
+          navigator.clipboard.readText()
+            .then((t) => { if (t && ptyId) window.yusepe.pty.input(ptyId, t); })
+            .catch(() => { /* sin permiso de lectura: no hay nada que pegar */ });
+        } else {
+          return true;
+        }
+        e.preventDefault();
+        return false;
+      });
 
       // `agent` hace que el pty nazca con YBENTO_AGENT/YBENTO_ROOT en el
       // entorno, así el CLI `ybento` ya sabe quién es sin que el agente
