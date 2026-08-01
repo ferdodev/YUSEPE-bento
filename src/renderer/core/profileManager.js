@@ -132,6 +132,20 @@ export const ProfileManager = {
 
   async removeTile(tileId) {
     if (!state.profile) return;
+
+    // Una terminal que pertenece a un loop no se borra por accidente: si
+    // desaparece, los otros agentes le siguen escribiendo a un nombre que
+    // ya no tiene dónde recibir, y el loop se rompe de una forma que no se
+    // ve. Hay que sacarla del loop primero (panel Loop -> ✕ en su fila).
+    // El guard va acá y no en cada botón porque éste es el único camino
+    // por el que se borra un tile.
+    const tile = (state.profile.tiles || []).find((t) => t.id === tileId);
+    if (tile?.loopAgent) {
+      throw new Error(
+        `Esta terminal es @${tile.loopAgent} en el loop. Sacala del loop antes de cerrarla.`,
+      );
+    }
+
     // Borrado real de un tile puntual: si era una terminal viva, se mata
     // de verdad (a diferencia de un simple cambio de workspace).
     liveTiles.kill(tileId);

@@ -109,6 +109,43 @@ contextBridge.exposeInMainWorld('yusepe', {
     search: (query, page) => ipcRenderer.invoke('pexels:search', { query, page }),
   },
 
+  // Loop multiagente: mensajería entre terminales. El reparto (vigilar el
+  // disco y escribir en el pty destino) lo hace el proceso main; de acá
+  // sale sólo lo que necesita la UI del panel de mensajes.
+  loop: {
+    agents: (cwd) => ipcRenderer.invoke('loop:agents', { cwd }),
+    register: (cwd, { name, role, tileId, color }) =>
+      ipcRenderer.invoke('loop:register', { cwd, name, role, tileId, color }),
+    unregister: (cwd, name) => ipcRenderer.invoke('loop:unregister', { cwd, name }),
+    setState: (cwd, name, state) => ipcRenderer.invoke('loop:set-state', { cwd, name, state }),
+
+    messages: (cwd, opts = {}) => ipcRenderer.invoke('loop:messages', { cwd, ...opts }),
+    post: (cwd, { from, to, text, replyTo }) =>
+      ipcRenderer.invoke('loop:post', { cwd, from, to, text, replyTo }),
+    inbox: (cwd, name) => ipcRenderer.invoke('loop:inbox', { cwd, name }),
+
+    skill: (cwd) => ipcRenderer.invoke('loop:skill', { cwd }),
+    setSkill: (cwd, content) => ipcRenderer.invoke('loop:set-skill', { cwd, content }),
+    ensureSkill: (cwd) => ipcRenderer.invoke('loop:ensure-skill', { cwd }),
+
+    // Asocia un agente con la terminal donde corre (efímero: el ptyId
+    // muere con la terminal, la identidad no).
+    bind: (name, ptyId) => ipcRenderer.invoke('loop:bind', { name, ptyId }),
+    unbind: (name) => ipcRenderer.invoke('loop:unbind', { name }),
+
+    start: (cwd) => ipcRenderer.invoke('loop:start', { cwd }),
+    stop: () => ipcRenderer.invoke('loop:stop'),
+
+    // Presencia: si el proceso del agente terminó, su terminal volvió al
+    // prompt y no se le entrega nada (el mensaje queda pendiente).
+    presence: () => ipcRenderer.invoke('loop:presence'),
+    atPrompt: (ptyId) => ipcRenderer.invoke('loop:at-prompt', { ptyId }),
+
+    onDelivered: (handler) => on('loop:delivered', handler),
+    onChanged: (handler) => on('loop:changed', handler),
+    onPresence: (handler) => on('loop:presence', handler),
+  },
+
   snippets: {
     list: () => ipcRenderer.invoke('snippets:list'),
     create: (payload) => ipcRenderer.invoke('snippets:create', payload),

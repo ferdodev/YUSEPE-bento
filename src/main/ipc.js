@@ -16,6 +16,9 @@ import * as gitOps from './gitOps.js';
 import * as agentOps from './agentOps.js';
 import * as tasksOps from './tasksOps.js';
 import * as pexelsOps from './pexelsOps.js';
+import * as loopOps from './loopOps.js';
+import { createDispatcher, looksLikeShell } from './loopDispatcher.js';
+import { buildPtyEnv, ensureShim } from './loopShim.js';
 import { SnippetsStore } from './snippetsOps.js';
 
 // Carga pty de forma perezosa: si falla (p.ej. sin recompilar)
@@ -39,6 +42,18 @@ function getPty() {
 export function registerIpc({ app, profilesDir }) {
   const storage = new ProfileStorage(profilesDir);
   const snippets = new SnippetsStore(join(app.getPath('userData'), 'snippets.json'));
+
+  // Shim del CLI `ybento` (ver loopShim.js). Se genera al arrancar y no al
+  // crear el primer loop: así una terminal cualquiera ya lo tiene en el
+  // PATH, y si la app se actualizó el wrapper queda apuntando al binario
+  // nuevo antes de que nadie lo use.
+  const loopBinDir = join(app.getPath('userData'), 'bin');
+  const loopCliPath = app.isPackaged
+    ? join(process.resourcesPath, 'ybento-cli', 'src', 'cli', 'ybento.mjs')
+    : join(app.getAppPath(), 'src', 'cli', 'ybento.mjs');
+
+  ensureShim({ binDir: loopBinDir, cliPath: loopCliPath, execPath: process.execPath })
+    .catch((err) => console.warn('[ipc] no se pudo instalar el shim de ybento:', err.message));
 
   // -------- Perfiles --------
   ipcMain.handle('profiles:list', () => storage.list());
@@ -213,7 +228,7 @@ export function registerIpc({ app, profilesDir }) {
   const ptys = new Map();
   let ptySeq = 0;
 
-  ipcMain.handle('pty:create', async (event, { cols, rows, cwd, shell } = {}) => {
+  ipcMain.handle('pty:create', async (event, { cols, rows, cwd, shell, agent, loopRoot } = {}) => {
     const lib = getPty();
     if (!lib) throw new Error('node-pty no está disponible en este binario');
 
@@ -223,13 +238,26 @@ export function registerIpc({ app, profilesDir }) {
 
     const shellArgs = process.platform === 'win32' ? [] : ['-l'];
 
+    // Toda terminal recibe el shim de `ybento` en el PATH; sólo las que
+    // pertenecen a un loop reciben además su identidad. Así el usuario
+    // puede usar el CLI a mano desde cualquier terminal para inspeccionar
+    // el loop, sin que la terminal se convierta en un agente por eso.
+    const env = buildPtyEnv({
+      baseEnv: process.env,
+      binDir: loopBinDir,
+      agent: agent || null,
+      root: agent ? (loopRoot || cwd || null) : null,
+    });
+
     const proc = lib.spawn(useShell, shellArgs, {
       name: 'xterm-256color',
       cols: cols || 80,
       rows: rows || 24,
       cwd: cwd || app.getPath('home'),
-      env: process.env,
+      env,
     });
+
+    if (agent) dispatcher.bind(agent, ptyId);
 
     proc.onData((data) => {
       // Reenviamos solo al webContents que creó esta pty
@@ -245,7 +273,10 @@ export function registerIpc({ app, profilesDir }) {
       ptys.delete(ptyId);
     });
 
-    ptys.set(ptyId, { proc, senderId: event.sender.id });
+    // `shell` se guarda para la sonda de presencia del loop: sirve para
+    // saber si el proceso en primer plano volvió a ser el shell, o sea que
+    // el agente que corría ahí ya terminó. Ver loopDispatcher.js.
+    ptys.set(ptyId, { proc, senderId: event.sender.id, shell: useShell });
     return { ptyId, shell: useShell };
   });
 
@@ -273,7 +304,90 @@ export function registerIpc({ app, profilesDir }) {
     }
   });
 
+  // -------- Loop multiagente (mensajería entre terminales) --------
+  //
+  // El repartidor vive acá y no en el renderer porque los mensajes los
+  // postean *otros procesos* (el CLI que corre cada agente): hace falta
+  // alguien vigilando el disco, y escribir al pty desde main evita un
+  // rebote de ida y vuelta por IPC en cada entrega.
+  let loopSender = null;
+
+  const notifyLoop = (channel, payload) => {
+    if (loopSender && !loopSender.isDestroyed()) loopSender.send(channel, payload);
+  };
+
+  const dispatcher = createDispatcher({
+    writeToPty: (ptyId, data) => {
+      const entry = ptys.get(ptyId);
+      if (entry) entry.proc.write(data);
+    },
+    // `proc.process` es el proceso en primer plano del pty: `claude` o
+    // `node` mientras el agente vive, y el shell cuando ya salió.
+    probePty: (ptyId) => {
+      const entry = ptys.get(ptyId);
+      return entry ? { process: entry.proc.process, shell: entry.shell } : null;
+    },
+    onDelivered: (info) => notifyLoop('loop:delivered', info),
+    onChange: () => notifyLoop('loop:changed', {}),
+    onPresence: (info) => notifyLoop('loop:presence', info),
+  });
+
+  ipcMain.handle('loop:agents', (_e, { cwd }) => loopOps.listAgents(cwd));
+  // Presencia: viva sólo en memoria, como el binding nombre->pty.
+  ipcMain.handle('loop:presence', () => dispatcher.presence());
+  // ¿Esa terminal está en el prompt del shell? Se consulta antes de
+  // tipearle un `export`: si adentro hay un agente corriendo, ese texto le
+  // entraría como si fuera un mensaje del usuario.
+  ipcMain.handle('loop:at-prompt', (_e, { ptyId }) => {
+    const entry = ptys.get(ptyId);
+    if (!entry) return false;
+    return looksLikeShell({ process: entry.proc.process, shell: entry.shell });
+  });
+  ipcMain.handle('loop:register', (_e, { cwd, name, role, tileId, color }) =>
+    loopOps.registerAgent(cwd, { name, role, tileId, color }));
+  ipcMain.handle('loop:unregister', (_e, { cwd, name }) => {
+    dispatcher.unbind(name);
+    return loopOps.unregisterAgent(cwd, name);
+  });
+  ipcMain.handle('loop:set-state', (_e, { cwd, name, state }) =>
+    loopOps.setAgentState(cwd, name, state));
+
+  ipcMain.handle('loop:messages', (_e, { cwd, to, limit }) =>
+    loopOps.listMessages(cwd, { to, limit }));
+  ipcMain.handle('loop:post', (_e, { cwd, from, to, text, replyTo }) =>
+    loopOps.postMessage(cwd, { from: from || 'usuario', to, text, replyTo }));
+  ipcMain.handle('loop:inbox', (_e, { cwd, name }) => loopOps.inbox(cwd, name));
+
+  ipcMain.handle('loop:skill', (_e, { cwd }) => loopOps.readSkill(cwd));
+  ipcMain.handle('loop:set-skill', (_e, { cwd, content }) => loopOps.writeSkill(cwd, content));
+  ipcMain.handle('loop:ensure-skill', (_e, { cwd }) => loopOps.ensureSkill(cwd));
+
+  // Asocia un agente con la terminal donde corre. Es efímero a propósito
+  // (ver la cabecera de loopDispatcher.js): el ptyId muere con la terminal.
+  ipcMain.handle('loop:bind', (_e, { name, ptyId }) => {
+    dispatcher.bind(name, ptyId);
+    return true;
+  });
+  ipcMain.handle('loop:unbind', (_e, { name }) => {
+    dispatcher.unbind(name);
+    return true;
+  });
+
+  ipcMain.handle('loop:start', (event, { cwd }) => {
+    loopSender = event.sender;
+    dispatcher.start(cwd);
+    return true;
+  });
+  ipcMain.handle('loop:stop', () => {
+    dispatcher.stop();
+    return true;
+  });
+
   const dispose = () => {
+    // No se espera: `dispose()` es async porque deja terminar la vuelta de
+    // reparto en curso, pero acá estamos cerrando la app y las escrituras
+    // de status.json son atómicas (tmp + rename), así que no hay a medias.
+    dispatcher.dispose();
     for (const { proc } of ptys.values()) {
       try { proc.kill(); } catch { /* noop */ }
     }
@@ -336,6 +450,12 @@ export function registerIpc({ app, profilesDir }) {
     ipcMain.removeHandler('snippets:create');
     ipcMain.removeHandler('snippets:update');
     ipcMain.removeHandler('snippets:delete');
+    for (const channel of [
+      'loop:agents', 'loop:register', 'loop:unregister', 'loop:set-state',
+      'loop:messages', 'loop:post', 'loop:inbox',
+      'loop:skill', 'loop:set-skill', 'loop:ensure-skill',
+      'loop:bind', 'loop:unbind', 'loop:start', 'loop:stop', 'loop:presence', 'loop:at-prompt',
+    ]) ipcMain.removeHandler(channel);
   };
 
   return { storage, dispose };

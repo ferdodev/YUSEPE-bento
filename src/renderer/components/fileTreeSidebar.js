@@ -15,6 +15,7 @@
  * --------------------------------------------------------------
  */
 import { h, debounce } from '../utils/dom.js';
+import { applySavedWidth, makeResizeHandle } from '../utils/resizableSidebar.js';
 import { svgIcon } from '../utils/icons.js';
 import { fileIconEl, folderIconEl, setFolderIcon } from '../core/fileIcons.js';
 import { state } from '../core/state.js';
@@ -62,54 +63,19 @@ function targetDir() {
   return selectedIsDir ? selectedRel : parentDirOf(selectedRel);
 }
 
-const WIDTH_KEY = 'yusepe:file-tree-width';
-const WIDTH_MIN = 200;
-const WIDTH_MAX = 640;
-const WIDTH_DEFAULT = 288;
-
-function applySavedWidth() {
-  const saved = parseInt(localStorage.getItem(WIDTH_KEY), 10);
-  const w = Number.isFinite(saved) ? Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, saved)) : WIDTH_DEFAULT;
-  panelEl.style.width = w + 'px';
-}
-
-/** Handle de redimensionado en el borde derecho (estilo VSCode). */
-function makeResizeHandle() {
-  const handle = h('div', { class: 'file-tree-resize-handle', title: 'Arrastrá para redimensionar' });
-  let startX = 0;
-  let startW = 0;
-
-  const onMove = (e) => {
-    const w = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, startW + (e.clientX - startX)));
-    panelEl.style.width = w + 'px';
-  };
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    document.body.classList.remove('resizing-sidebar');
-    localStorage.setItem(WIDTH_KEY, String(Math.round(panelEl.getBoundingClientRect().width)));
-  };
-  handle.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    startX = e.clientX;
-    startW = panelEl.getBoundingClientRect().width;
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-    document.body.classList.add('resizing-sidebar');
-  });
-  // Doble click: restablece el ancho por defecto.
-  handle.addEventListener('dblclick', () => {
-    panelEl.style.width = WIDTH_DEFAULT + 'px';
-    localStorage.setItem(WIDTH_KEY, String(WIDTH_DEFAULT));
-  });
-  return handle;
-}
+const WIDTH_OPTS = {
+  storageKey: 'yusepe:file-tree-width',
+  edge: 'right',
+  min: 200,
+  max: 640,
+  defaultWidth: 288,
+};
 
 export function initFileTreeSidebar() {
   panelEl = document.getElementById('file-tree-sidebar');
   if (!panelEl) return;
 
-  applySavedWidth();
+  applySavedWidth(panelEl, WIDTH_OPTS);
   buildChrome();
 
   // El árbol nuevo es de otro workspace: la expansión/selección anterior no
@@ -164,7 +130,7 @@ function buildChrome() {
   treeEl = h('div', { class: 'flex-1 overflow-y-auto text-xs py-2 px-1' });
   resultsEl = h('div', { class: 'hidden flex-1 overflow-y-auto text-xs py-2 px-1' });
 
-  panelEl.append(headerEl, searchInput, treeEl, resultsEl, makeResizeHandle());
+  panelEl.append(headerEl, searchInput, treeEl, resultsEl, makeResizeHandle({ panel: panelEl, ...WIDTH_OPTS }));
   panelEl.classList.add('flex', 'flex-col');
 
   // Guarda referencia al label del root para actualizarlo en cada render.

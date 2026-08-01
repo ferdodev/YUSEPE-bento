@@ -75,9 +75,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><path d="M8 6 4 12l4 6M16 6l4 6-4 6"/></svg>
         </button>
         <button
+          id="btn-toggle-loop"
+          disabled
+          class="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-fg hover:bg-bg-elev transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-muted"
+          title="Loop — mensajería entre terminales"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-[17px] h-[17px]"><path d="M4 9a4 4 0 0 1 4-4h8a4 4 0 0 1 0 8H8a4 4 0 0 0 0 8h8a4 4 0 0 0 4-4"/><path d="M7 6 4 9l3 3M17 15l3 3-3 3"/></svg>
+        </button>
+        <button
           id="btn-add-to-space"
           disabled
           class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-accent px-3 py-1.5 rounded-md hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
+          title="Agregar un tile al espacio: terminal, web, archivo, tareas…"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M12 5v14M5 12h14"/></svg>
           Agregar
@@ -93,6 +102,7 @@
         <select
           id="profile-select"
           class="text-xs bg-bg-elev border border-line rounded-md px-2 py-1.5"
+          title="Cambiar de workspace"
         ></select>
         <button
           id="btn-new-profile"
@@ -194,6 +204,17 @@
     <aside
       id="snippets-sidebar"
       class="hidden fixed right-0 top-12 bottom-0 w-72 z-40 bg-bg-soft border-l border-line shadow-2xl overflow-y-auto"
+    ></aside>
+
+    <!-- Panel del loop multiagente: quiénes están en el loop y qué se
+         están diciendo las terminales. Más ancho que el de snippets
+         porque muestra una conversación, no una lista. Sin
+         overflow-y acá: el scroll lo maneja el hilo de mensajes por
+         dentro, así el roster y el composer quedan fijos.
+         Ver components/loopSidebar.js. -->
+    <aside
+      id="loop-sidebar"
+      class="hidden fixed right-0 top-12 bottom-0 z-40 bg-bg-soft border-l border-line shadow-2xl overflow-hidden"
     ></aside>
 
     <script type="module" src="./main.js"></script>

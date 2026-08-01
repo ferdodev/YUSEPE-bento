@@ -93,7 +93,16 @@ function setupMenu(win) {
       submenu: [
         { role: 'undo' }, { role: 'redo' },
         { type: 'separator' },
-        { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' },
+        // Fuera de macOS estos roles se quedarían con Ctrl+C/X/V *antes* que
+        // el renderer, y en una terminal Ctrl+C es SIGINT: el usuario pierde
+        // la forma de interrumpir un proceso. Chromium ya maneja el
+        // portapapeles nativo en inputs sin necesidad del acelerador, así que
+        // el ítem queda visible pero sin registrar la tecla. Copiar/pegar en
+        // la terminal va por Ctrl+Shift+C/V (components/terminal.js).
+        { role: 'cut', registerAccelerator: isMac },
+        { role: 'copy', registerAccelerator: isMac },
+        { role: 'paste', registerAccelerator: isMac },
+        { role: 'selectAll' },
       ],
     },
     {
@@ -154,6 +163,12 @@ function createWindow() {
   const sendFullscreen = (v) => mainWindow.webContents.send('window:fullscreen', v);
   mainWindow.on('enter-full-screen', () => sendFullscreen(true));
   mainWindow.on('leave-full-screen', () => sendFullscreen(false));
+  // Los dos de arriba son eventos de *cambio*: si la app arranca ya en
+  // pantalla completa (macOS la reabre en su mismo Space) no se dispara
+  // ninguno, el renderer nunca se entera y la topbar deja reservado el
+  // hueco de unos semáforos que no están — todo corrido 64px a la derecha.
+  // Por eso hay que mandar el estado inicial una vez que el renderer cargó.
+  mainWindow.webContents.on('did-finish-load', () => sendFullscreen(mainWindow.isFullScreen()));
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);

@@ -126,6 +126,12 @@ export function openGitPanel() {
     }
     const { branch, ahead, behind } = currentStatus;
     branchLabel.textContent = `⎇` + (ahead ? ` ↑${ahead}` : '') + (behind ? ` ↓${behind}` : '');
+    branchLabel.title = [
+      `Rama actual: ${branch}`,
+      ahead ? `↑${ahead} commit(s) tuyos sin subir` : null,
+      behind ? `↓${behind} commit(s) del remoto sin bajar` : null,
+      !ahead && !behind ? 'Al día con el remoto' : null,
+    ].filter(Boolean).join('\n');
     renderFileList(currentStatus.files);
     updateCommitBtn();
     await refreshBranches(branch);

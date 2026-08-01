@@ -326,14 +326,17 @@ function addHandles(node, tileId) {
 
   const resizeR = document.createElement('div');
   resizeR.className = 'tile-handle-r';
+  resizeR.title = 'Arrastrar para cambiar el ancho';
   resizeR.addEventListener('mousedown', (e) => startResize(e, tileId, 'r'));
 
   const resizeB = document.createElement('div');
   resizeB.className = 'tile-handle-b';
+  resizeB.title = 'Arrastrar para cambiar el alto';
   resizeB.addEventListener('mousedown', (e) => startResize(e, tileId, 'b'));
 
   const resizeBR = document.createElement('div');
   resizeBR.className = 'tile-handle-br';
+  resizeBR.title = 'Arrastrar para cambiar ancho y alto';
   resizeBR.addEventListener('mousedown', (e) => startResize(e, tileId, 'br'));
 
   node.append(move, resizeR, resizeB, resizeBR);
@@ -567,5 +570,13 @@ export async function closeFocusedTile() {
   if (!focusedTileId) return;
   const id = focusedTileId;
   focusedTileId = null;
-  await ProfileManager.removeTile(id);
+  try {
+    await ProfileManager.removeTile(id);
+  } catch (err) {
+    // Terminal protegida por pertenecer a un loop: se devuelve el foco,
+    // que si no el tile queda ahí pero deseleccionado.
+    focusedTileId = id;
+    focusTile(id);
+    bus.emit('toast', { type: 'error', message: err?.message || String(err) });
+  }
 }
