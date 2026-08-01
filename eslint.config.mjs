@@ -44,8 +44,10 @@ export default [
   },
 
   // Renderer: entorno browser (window, document, localStorage…).
+  // `docs/` es el sitio estático de GitHub Pages — módulos ES que corren
+  // directo en el navegador, sin bundler, así que van con el mismo entorno.
   {
-    files: ['src/renderer/**/*.js'],
+    files: ['src/renderer/**/*.js', 'docs/**/*.js'],
     languageOptions: {
       globals: { ...globals.browser },
     },

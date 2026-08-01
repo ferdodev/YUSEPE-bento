@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YUSEPE Bento — Cockpit de código en un Bento Grid</title>
+<meta name="description" content="Cada proyecto es un caos. Dale su propio bento: terminales reales, webapps embebidas, Git, explorador de archivos, tareas en .md que le hablan a tu agente y un loop multiagente — todo en un grid vivo y redimensionable a mano.">
+<meta name="theme-color" content="#0b0c0e">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="YUSEPE Bento — Cockpit de código en un Bento Grid">
+<meta property="og:description" content="Terminales reales, Git, archivos y tareas en .md que arman el prompt para tu agente de código. Todo local, redimensionable a mano y vivo entre proyectos.">
+<meta property="og:image" content="icon.png">
+<meta name="twitter:card" content="summary">
+
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="stylesheet" href="styles.css">
+
+<!-- Tema antes del primer paint: si esto fuese un módulo, la página pintaría
+     en oscuro y saltaría a claro. Por eso va inline y bloqueante. -->
+<script>
+  try { document.documentElement.dataset.theme = localStorage.getItem('yb-theme') || 'dark'; }
+  catch (e) { document.documentElement.dataset.theme = 'dark'; }
+</script>
+
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+
+<!-- ============================ WINBAR ============================ -->
+<header class="winbar">
+  <div class="wrap row">
+    <div class="wtitle">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span>yusepe-bento</span>
+    </div>
+    <nav class="wnav">
+      <a href="#features"><span class="n">1</span> capacidades</a>
+      <a href="#loop"><span class="n">2</span> loop</a>
+      <a href="#tasks"><span class="n">3</span> tareas</a>
+      <a href="#persist"><span class="n">4</span> persistencia</a>
+      <a href="#shortcuts"><span class="n">5</span> atajos</a>
+      <a href="#get"><span class="n">6</span> empezar</a>
+    </nav>
+    <button class="winbtn" data-open-cmdk>
+      <span class="lbl">buscar</span>
+      <span class="key hot">⌘K</span>
+    </button>
+    <button class="winbtn" data-theme-toggle title="Cambiar tema" aria-label="Cambiar tema"></button>
+  </div>
+</header>
+
+<!-- ============================= HERO ============================= -->
+<div class="wrap">
+  <section class="hero">
+    <div class="tagline reveal"><span class="b">$</span> cockpit de código para gente que vive entre proyectos</div>
+
+    <h1 class="reveal">
+      <span class="out">Cada proyecto es un caos.</span><br>
+      <span class="sort">Dale su propio bento.</span>
+    </h1>
+
+    <p class="lead reveal">
+      YUSEPE Bento convierte cada espacio de trabajo en un cockpit vivo y redimensionable a mano:
+      terminales reales, webapps embebidas, Git, explorador de archivos, agentes de IA y
+      <b>tareas que le hablan a tu agente de código</b> — todo junto, ordenado a tu manera, y vivo
+      incluso cuando saltas de un proyecto a otro.
+    </p>
+
+    <div class="cta reveal">
+      <a class="tbtn tbtn--primary" href="#get">descargar para escritorio ↵</a>
+      <button class="tbtn" data-open-cmdk>
+        probar el command palette <span class="key" style="margin-left:2px">⌘K</span>
+      </button>
+    </div>
+
+    <div class="hero-meta reveal">
+      <span><b>electron · macOS · windows · linux</b></span>
+      <span><b>node-pty — terminales reales, no emuladas</b></span>
+      <span><b>0 telemetría · todo local</b></span>
+    </div>
+
+    <!-- ---------------------- BENTO VIVO ---------------------- -->
+    <div class="stage reveal" id="bento">
+      <div class="stage-head">
+        <span class="seg on">● frontend-app</span>
+        <span class="seg">cwd ~/dev/app</span>
+        <span class="cmdline"><span class="c">:sort</span> caos → orden</span>
+        <button class="winbtn shuffle" data-shuffle>
+          <span class="key">:sort</span> reorganizar
+        </button>
+      </div>
+
+      <div class="bento" data-bento>
+        <div class="t term">
+          <div class="ptitle"><span class="tdot">●</span> terminal · zsh <span class="grip">⠿</span></div>
+          <div class="tbody">
+            <div><span class="p">~/dev/app ❯</span> npm run dev</div>
+            <div class="ok">✓ vite ready in 312 ms</div>
+            <div class="dim">➜ local: http://localhost:5173</div>
+            <div><span class="p">~/dev/app ❯</span> <span data-typed></span><span class="cursor"></span></div>
+          </div>
+        </div>
+
+        <div class="t web">
+          <div class="ptitle"><span class="tdot">●</span> webview <span class="grip">⠿</span></div>
+          <div class="tbody">
+            <div class="rowbar"><span>◀ ▶ ↻</span><span class="u">app.local/docs</span></div>
+            <div class="skel"></div>
+            <div class="skel s3"></div>
+            <div class="skel accent"></div>
+            <div class="skel s2"></div>
+            <div class="skel"></div>
+          </div>
+        </div>
+
+        <div class="t git">
+          <div class="ptitle"><span class="tdot">●</span> git <span class="branch">⑂ main</span> <span class="grip">⠿</span></div>
+          <div class="tbody">
+            <div class="row"><span>src/layout.js</span><span class="add">+42</span></div>
+            <div class="row"><span>style.css</span><span><span class="add">+8</span> <span class="del">-3</span></span></div>
+            <div class="row"><span>README.md</span><span class="add">+11</span></div>
+          </div>
+        </div>
+
+        <div class="t calc">
+          <div class="ptitle"><span class="tdot">●</span> calc <span class="grip">⠿</span></div>
+          <div class="tbody">
+            <div class="grid">
+              <div class="k">7</div><div class="k">8</div><div class="k">9</div><div class="k op">/</div>
+              <div class="k">4</div><div class="k">5</div><div class="k">6</div><div class="k op">*</div>
+              <div class="k">1</div><div class="k">2</div><div class="k">3</div><div class="k op">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="t tasks">
+          <div class="ptitle"><span class="tdot">●</span> tasks · .ybento/tasks/ <span class="grip">⠿</span></div>
+          <div class="tbody tasks">
+            <div class="tk done"><span class="box">[x]</span><span class="txt">Panel de git: fetch + pull</span></div>
+            <div class="tk"><span class="box">[ ]</span><span class="txt">Fijar PDF como tile</span><span class="launch">▸ launch</span></div>
+            <div class="tk"><span class="box">[ ]</span><span class="txt">El buscador encuentra dotfiles</span></div>
+            <div class="meta">▸ launch → prompt listo para tu agente</div>
+          </div>
+        </div>
+
+        <div class="t files">
+          <div class="ptitle"><span class="tdot">●</span> explorer <span class="grip">⠿</span></div>
+          <div class="tbody">
+            <div class="f"><span class="em">▸</span> src/</div>
+            <div class="f sel"><span class="em">▾</span> layout.js</div>
+            <div class="f"><span class="em">·</span> bentoGrid.js</div>
+            <div class="f"><span class="em">·</span> style.css</div>
+            <div class="f"><span class="em">▸</span> .github/</div>
+          </div>
+        </div>
+
+        <div class="t agent">
+          <div class="ptitle"><span class="tdot">●</span> agent · claude <span class="grip">⠿</span></div>
+          <div class="tbody agent">
+            <div class="who you">you ❯</div>
+            <div class="bubble">Refactoriza el push/pull del resize sin romper los tests.</div>
+            <div class="who">claude ❯</div>
+            <div class="bubble">Hecho. <span class="blu">resolveColGrowth</span> ahora encoge al vecino. 4/4 tests ✓</div>
+          </div>
+        </div>
+
+        <div class="t file">
+          <div class="ptitle"><span class="tdot">●</span> README.md · fijado <span class="grip">⠿</span></div>
+          <div class="tbody file">
+            <div class="fv">
+              <div class="ln">1<br>2<br>3<br>4</div>
+              <div class="code">
+                <span class="h"># YUSEPE Bento</span><br><br>
+                Cockpit de código en un <span class="s">**Bento Grid**</span> dinámico: espacios de trabajo locales,<br>
+                terminales reales (node-pty), webapps embebidas, explorador de archivos…
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================ STATS ============================= -->
+<div class="wrap">
+  <section style="padding-top:34px">
+    <div class="stats reveal">
+      <div class="stat"><div class="n">321</div><div class="l">tests sobre la lógica crítica</div></div>
+      <div class="stat"><div class="n">5</div><div class="l">tipos de tile: term · web · calc · file · tasks</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">procesos muertos al cambiar de espacio</div></div>
+      <div class="stat"><div class="n">12</div><div class="l">columnas de grid, resize a mano</div></div>
+    </div>
+  </section>
+</div>
+
+<!-- =========================== FEATURES =========================== -->
+<div class="wrap">
+  <section id="features">
+    <div class="sec-head reveal">
+      <div class="sec-tag">capacidades</div>
+      <h2>Tu caos, pero organizado como tú quieres.</h2>
+      <p>
+        No es otra terminal con pestañas. Es un lienzo de trabajo donde cada herramienta es un bloque
+        que pones, mueves y estiras — y el grid se reacomoda solo para que nunca quede un hueco feo.
+      </p>
+    </div>
+
+    <div class="features">
+      <div class="card tall reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> layout.js</div>
+          <div class="pbody">
+            <div class="ico">▚</div>
+            <h3>Bento Grid con push &amp; pull</h3>
+            <p>
+              Arrastra un borde y, si chocas con un vecino, lo <b>encoge</b> en vez de bloquear el gesto.
+              Encógelo y el vecino se <b>expande</b> para llenar el hueco. Cierra un tile y todo se compacta
+              sin dejar espacios muertos. Lógica pura, cubierta por tests.
+            </p>
+            <div class="mini-grid">
+              <div style="grid-column:span 3;grid-row:span 3;background:var(--accent)"></div>
+              <div style="grid-column:span 3;grid-row:span 1;background:var(--panel-2)"></div>
+              <div style="grid-column:span 3;grid-row:span 2;background:var(--panel-2)"></div>
+              <div style="grid-column:span 6;grid-row:span 1;background:color-mix(in srgb, var(--accent) 35%, var(--panel-2))"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card wide reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> explorerFs.js</div>
+          <div class="pbody">
+            <div class="ico">◇</div>
+            <h3>Explorador con CRUD real</h3>
+            <p>
+              Árbol del workspace con iconos por tipo y buscador que <b>sí</b> encuentra dotfiles. Menú
+              contextual nativo: renombrar, duplicar, eliminar (a la Papelera, recuperable), copiar ruta,
+              revelar en Finder. Y <b>fijar cualquier archivo como tile</b> — código, Markdown, CSV, SVG,
+              imagen o PDF.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card wide reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> gitOps.js</div>
+          <div class="pbody">
+            <div class="ico">⑂</div>
+            <h3>El ciclo de sync completo</h3>
+            <p>
+              Status, diff, stage/unstage, descartar, commit, push, <b>fetch</b>, <b>pull</b> y ramas —
+              sin salir a lazygit ni a la terminal.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> node-pty</div>
+          <div class="pbody">
+            <div class="ico">▤</div>
+            <h3>Terminales reales</h3>
+            <p>
+              Shells de verdad vía <span class="blu">node-pty</span> — no un emulador. xterm.js, scrollback
+              completo y el <span class="blu">cwd</span> del workspace.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> agentOps.js</div>
+          <div class="pbody">
+            <div class="ico">✦</div>
+            <h3>Panel de agentes</h3>
+            <p>
+              Detecta y edita <span class="blu">CLAUDE.md</span>, <span class="blu">AGENTS.md</span>,
+              <span class="blu">.cursorrules</span> y compañía. Lista tus subagentes de
+              <span class="blu">.claude/agents/</span>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> snippetsOps.js</div>
+          <div class="pbody">
+            <div class="ico">{}</div>
+            <h3>Snippets que se tipean solos</h3>
+            <p>
+              Librería de comandos y rutinas multi-línea, global a la app. Un click los ejecuta línea por
+              línea en la terminal enfocada, como si los escribieras a mano.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card full reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> theme · wallpaper</div>
+          <div class="pbody">
+            <div class="ico">◐</div>
+            <h3>Tema claro/oscuro que llega hasta el fondo</h3>
+            <p>
+              Un toggle repinta toda la UI vía variables CSS, la paleta de las terminales y — vía
+              <span class="blu">nativeTheme</span> — el <span class="blu">prefers-color-scheme</span> de
+              <b>todos</b> los webviews embebidos, para que hasta las webs de terceros respeten tu tema.
+              Suma un wallpaper por workspace (buscador de Pexels integrado) y transparencia de las
+              terminales encima, estilo Warp.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ====================== LOOP MULTIAGENTE ======================== -->
+<div class="wrap">
+  <section id="loop">
+    <div class="sec-head reveal">
+      <div class="sec-tag">novedad · loop multiagente</div>
+      <h2>Un agente codea. Otro revisa. Se hablan solos.</h2>
+      <p>
+        Cada terminal puede alojar un agente distinto con su propio nombre y rol. Bento les da una
+        <b>bandeja compartida</b> y reparte los mensajes escribiéndolos en el pty del destinatario —
+        sólo cuando está libre, uno por vuelta. Tú miras la conversación pasar.
+      </p>
+    </div>
+
+    <div class="loop reveal">
+      <div class="panel">
+        <div class="ptitle"><span class="tdot">●</span> .ybento/loop/status.json</div>
+        <div class="pbody">
+          <div class="roster" data-roster></div>
+          <div class="vars">
+            el estado <b>es</b> el disco: <b>messages.jsonl</b> append-only · <b>status.json</b> con lock ·
+            <b>skill.md</b> con el protocolo que leen los agentes
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle"><span class="tdot">●</span> hilo del workspace <span class="r">— grupal</span></div>
+        <div class="pbody">
+          <div class="thread" data-thread></div>
+          <div class="ltbar">
+            <button class="tbtn" data-loop-play>reproducir el loop</button>
+            <span class="dim" data-loop-status></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes reveal">
+      <div class="note">
+        <div class="h">Una línea, y el Enter aparte</div>
+        <p>
+          Del otro lado hay un TUI, no un shell: un <span class="blu">\n</span> sería un Enter a mitad del
+          mensaje. El texto se aplana para el viaje y el <span class="blu">\r</span> se manda después, con
+          pausa, para que llegue como una tecla y no como un pegado.
+        </p>
+      </div>
+      <div class="note">
+        <div class="h">Nunca a un agente ocupado</div>
+        <p>
+          Escribir en el pty de un agente que está trabajando entrelaza el texto con su TUI. El repartidor
+          sólo entrega a los que están en <span class="grn">waiting</span>, y si el proceso del agente ya
+          terminó no entrega nada: el mensaje queda pendiente en vez de perderse.
+        </p>
+      </div>
+      <div class="note">
+        <div class="h">Cruces y desfase de código</div>
+        <p>
+          Cada mensaje se sella con el HEAD del momento. Si dos agentes se escribieron a la vez, o si el
+          árbol ya avanzó desde que se escribió el reporte, el aviso viaja dentro del mensaje.
+        </p>
+      </div>
+      <div class="note">
+        <div class="h">Un CLI para el agente</div>
+        <p>
+          <span class="blu">ybento bandeja</span>, <span class="blu">ybento enviar @qa …</span>,
+          <span class="blu">ybento estado</span>. Acepta stdin y <span class="blu">-f archivo</span> para
+          reportes largos, porque el shell del agente también expande backticks.
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===================== TAREAS → launchText ====================== -->
+<div class="wrap">
+  <section id="tasks">
+    <div class="sec-head reveal">
+      <div class="sec-tag">el puente que un webview no puede cruzar</div>
+      <h2>Tus tareas le hablan a tu agente de código.</h2>
+      <p>
+        Cada tarea es un <b>.md real</b> en <span class="blu">.ybento/tasks/</span> — sin índice, sin base
+        de datos: el estado <b>es</b> el directorio. Se editan a mano, se versionan con git y viajan con el
+        repo. Y un botón arma el prompt listo para pegarle a tu agente… que al terminar marca la tarea
+        como completada.
+      </p>
+    </div>
+
+    <div class="launch reveal">
+      <div class="panel">
+        <div class="ptitle"><span class="tdot">●</span> .ybento/tasks/</div>
+        <div class="pbody">
+          <div class="tasklist" data-tasklist></div>
+          <div class="vars">
+            frontmatter mínimo: <b>title</b> · <b>done</b> · <b>createdAt</b> + cuerpo libre en Markdown
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle"><span class="tdot">●</span> launch-template.md <span class="r">— resuelto</span></div>
+        <div class="pbody">
+          <div class="lt" data-launch-text></div>
+          <div class="ltbar" data-launch-bar></div>
+          <div class="vars">
+            variables: <b>{{task_title}}</b> <b>{{task_route}}</b> <b>{{task_notes}}</b>
+            <b>{{project_root}}</b> → <span class="dim">/Users/tu/dev/app</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ========================= PERSISTENCIA ========================= -->
+<div class="wrap">
+  <section id="persist">
+    <div class="persist">
+      <div class="reveal">
+        <div class="sec-tag">la feature estrella</div>
+        <h2>Cambia de proyecto sin matar tu trabajo.</h2>
+        <p style="color:var(--fg-dim);font-size:15px;margin:0 0 4px">
+          La mayoría de las herramientas te hacen empezar de cero cada vez que cambias de contexto. Aquí no.
+        </p>
+        <ul>
+          <li><span class="m">›</span><span>Tus terminales <b>siguen corriendo</b> en background — el build, el server, el proceso de larga duración: intactos.</span></li>
+          <li><span class="m">›</span><span>Los webviews <b>conservan su sesión</b> y su scroll; no se recargan.</span></li>
+          <li><span class="m">›</span><span>Vuelves al workspace y todo está <b>tal cual lo dejaste</b>. Nada se destruye en un simple cambio de perfil.</span></li>
+          <li><span class="m">›</span><span>Un chip en la barra te muestra qué workspaces siguen vivos en segundo plano.</span></li>
+        </ul>
+      </div>
+
+      <div class="reveal">
+        <div class="panel">
+          <div class="ptitle"><span class="tdot">●</span> processes</div>
+          <div class="pbody">
+            <div class="ws-tabs" data-ws-tabs></div>
+            <div class="ws-view panel" style="background:var(--bg)" data-ws-view></div>
+            <div class="hint">↑ cambia de workspace — el proceso del otro <b class="grn">sigue vivo</b>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================ ATAJOS ============================ -->
+<div class="wrap">
+  <section id="shortcuts">
+    <div class="sec-head reveal">
+      <div class="sec-tag">todo desde el teclado</div>
+      <h2>Las manos nunca dejan el teclado.</h2>
+    </div>
+    <div class="shortcuts">
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">P</span></div><div class="desc">Ir a archivo (Quick Open)</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">⇧</span><span class="key">P</span></div><div class="desc">Command Palette</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">K</span></div><div class="desc">Agregar al espacio</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">T</span></div><div class="desc">Nueva terminal</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">1…9</span></div><div class="desc">Ir al espacio 1…9</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">⌥</span><span class="key">←↑→↓</span></div><div class="desc">Mover el foco entre tiles</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">⌥</span><span class="key">⇧</span><span class="key">←↑→↓</span></div><div class="desc">Mover el tile enfocado</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">/</span></div><div class="desc">Cheatsheet de atajos</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">,</span></div><div class="desc">Configuración</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">W</span></div><div class="desc">Cerrar el tile enfocado</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌃</span><span class="key">⇧</span><span class="key">C/V</span></div><div class="desc">Copiar y pegar en la terminal (win · linux)</div></div>
+      <div class="sc reveal"><div class="keys"><span class="key">⌘</span><span class="key">B</span></div><div class="desc">Explorador de archivos</div></div>
+    </div>
+  </section>
+</div>
+
+<!-- ========================== CTA FINAL =========================== -->
+<div class="wrap">
+  <section class="final" id="get">
+    <div class="panel reveal">
+      <div class="ptitle"><span class="tdot">●</span> get-started.sh</div>
+      <div class="pbody">
+        <h2>Ordena el caos. Un bento por proyecto.</h2>
+        <p>Gratis y de código abierto. Todo vive en tu máquina — cero telemetría, cero nube obligatoria.</p>
+        <div class="cta">
+          <a class="tbtn tbtn--primary" href="https://github.com/jmjauregui/YUSEPE-bento/releases/latest">descargar para macOS</a>
+          <a class="tbtn" href="https://github.com/jmjauregui/YUSEPE-bento/releases">windows · linux</a>
+        </div>
+        <div class="clone"><span class="p">❯</span> git clone · npm install · npm run dev</div>
+        <p class="gk">
+          macOS no está firmado todavía (no hay cuenta de Apple Developer): la primera vez, abrí el
+          <span class="blu">.app</span> con <b>click derecho → Abrir</b>.
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap row">
+    <div><span class="grn">●</span> <a href="https://github.com/jmjauregui/YUSEPE-bento">yusepe-bento</a> · MIT · Joseph Jauregui</div>
+    <div class="stack">
+      <span>electron</span><span>electron-vite</span><span>vanilla-js</span>
+      <span>tailwindcss</span><span>node-pty</span><span>xterm.js</span>
+    </div>
+    <div>© 2026</div>
+  </div>
+</footer>
+
+<!-- ======================= COMMAND PALETTE ======================== -->
+<div class="overlay" data-overlay>
+  <div class="cmdk" role="dialog" aria-label="Command palette" aria-modal="true">
+    <div class="prompt-row">
+      <span class="caret">❯</span>
+      <input data-cmdk-input placeholder="buscar una capacidad de Bento…" autocomplete="off" spellcheck="false" aria-label="Buscar">
+    </div>
+    <div class="list" data-cmdk-list></div>
+    <div class="preview" data-cmdk-preview></div>
+    <div class="foot">
+      <span><span class="key">↑↓</span> navegar</span>
+      <span><span class="key">⏎</span> ejecutar</span>
+      <span><span class="key">esc</span> cerrar</span>
+      <span class="count" data-cmdk-count></span>
+    </div>
+  </div>
+</div>
+
+<!-- ========================== STATUS BAR ========================== -->
+<div class="statusbar" role="presentation">
+  <div class="seg mode">NORMAL</div>
+  <div class="seg">~/dev/app</div>
+  <div class="seg hideable"><span class="amb">⑂ main*</span></div>
+  <div class="seg hideable"><span class="live">●</span>&nbsp;3 workspaces vivos</div>
+  <div class="seg grow"></div>
+  <div class="right">
+    <div class="seg hideable">UTF-8</div>
+    <div class="seg hideable">LF</div>
+    <div class="seg"><span class="key hot" style="margin-right:6px">⌘K</span> paleta</div>
+    <div class="seg">100%</div>
+  </div>
+</div>
+
+</body>
+</html>
