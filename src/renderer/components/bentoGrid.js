@@ -448,10 +448,24 @@ function startMove(e, tileId) {
   e.preventDefault();
 
   beginDrag();
+  renderedTiles.get(tileId)?.node?.classList.add('is-moving');
+
+  // Foto del layout al empezar el drag. Cada mousemove parte SIEMPRE de
+  // acá: sin esto, pasar el mouse por encima de un tile lo desplazaba una
+  // vez por cada celda recorrida, los corrimientos se acumulaban y el
+  // pobre terminaba "muy abajo". Con la foto, lo que se ve durante el
+  // arrastre es la previsualización exacta de lo que queda al soltar.
+  const tiles = state.profile?.tiles || [];
+  const snapshot = tiles.map((t) => ({ tile: t, col: t.col || 1, row: t.row || 1 }));
+  let lastCol = null;
+  let lastRow = null;
 
   function onMove(ev) {
     const { col, row } = cellAtPoint(ev.clientX, ev.clientY);
-    const tiles = state.profile?.tiles || [];
+    if (col === lastCol && row === lastRow) return;
+    lastCol = col;
+    lastRow = row;
+    for (const s of snapshot) { s.tile.col = s.col; s.tile.row = s.row; }
     moveTileTo(tiles, tileId, col, row);
     for (const t of tiles) updateTilePosition(t.id);
   }
@@ -460,6 +474,7 @@ function startMove(e, tileId) {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
     endDrag();
+    renderedTiles.get(tileId)?.node?.classList.remove('is-moving');
     ProfileManager.saveCurrent().catch((err) => console.error('[bento] move save:', err));
   }
 

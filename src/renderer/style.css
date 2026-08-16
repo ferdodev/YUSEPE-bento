@@ -353,6 +353,14 @@
     z-index: 1;
   }
 
+  /* Tile en vuelo durante el drag: se distingue del resto, que mientras
+     tanto muestra la previsualización de dónde quedaría cada uno. */
+  .tile.is-moving {
+    opacity: 0.75;
+    z-index: 2;
+    box-shadow: inset 0 0 0 2px var(--color-accent), 0 8px 24px rgb(0 0 0 / 0.35);
+  }
+
   webview {
     width: 100%;
     height: 100%;
