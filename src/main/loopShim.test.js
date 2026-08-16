@@ -38,7 +38,12 @@ describe('ensureShim', () => {
     });
 
     const stat = await fs.stat(file);
-    expect(stat.mode & 0o111).toBeTruthy(); // tiene bit de ejecución
+    // NTFS no tiene bits de ejecución: en Windows `chmod` es un no-op y
+    // `stat.mode & 0o111` da siempre 0, aunque el wrapper esté bien.
+    if (process.platform !== 'win32') {
+      expect(stat.mode & 0o111).toBeTruthy(); // tiene bit de ejecución
+    }
+    expect(stat.isFile()).toBe(true);
     expect(path.basename(file)).toBe('ybento');
   });
 

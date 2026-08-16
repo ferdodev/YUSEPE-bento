@@ -140,7 +140,8 @@ describe('entrega', () => {
     const { data } = writes.pastes[0];
     expect(data).toContain('@opencito');
     expect(data).toContain('@claudio');
-    expect(data).toContain('.ybento/loop/skill.md');
+    // path.join: en Windows la ruta viaja con `\`, en Unix con `/`.
+    expect(data).toContain(path.join('.ybento', 'loop', 'skill.md'));
   });
 
   it('cada agente recibe lo suyo', async () => {
