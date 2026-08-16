@@ -12,6 +12,14 @@ una calculadora, un explorador de archivos, un panel de Git, o un panel de
 framework de UI) + TailwindCSS, sin bundler de estado — reactividad manual
 vía `Proxy` + un event bus.
 
+## Reglas de operación
+
+**Nunca matar ni cerrar la app Bento en ejecución sin confirmación explícita del usuario.**
+Si se necesita cerrar Bento para resolver un problema (por ejemplo, un archivo bloqueado
+durante el empaquetado), se debe pedir confirmación primero y esperar respuesta antes de
+ejecutar cualquier `Stop-Process`, `kill`, o comando equivalente sobre procesos de Bento/Electron.
+El usuario puede estar trabajando en la app en ese momento.
+
 ## Comandos
 
 ```bash
