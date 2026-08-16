@@ -86,9 +86,23 @@ export function buildWallpaperSection() {
     }
   }
 
+  /**
+   * La foto se pide al CDN de Pexels a la medida REAL de la pantalla
+   * (resolución física: px CSS × devicePixelRatio). Las variantes fijas
+   * (`large2x` = 1880px) quedan cortas en pantallas 2K/4K y el `cover`
+   * las estira borrosas; el CDN redimensiona el original al ancho pedido
+   * (sin upscalear más allá del original) y sirve un archivo mucho más
+   * liviano que el original crudo.
+   */
+  function optimalUrl(photo) {
+    if (!photo.original) return photo.full;
+    const px = Math.ceil(window.screen.width * (window.devicePixelRatio || 1));
+    return `${photo.original}?auto=compress&cs=tinysrgb&w=${px}`;
+  }
+
   async function applyPexelsPhoto(photo) {
     await applyWallpaper({
-      url: photo.full,
+      url: optimalUrl(photo),
       photographerName: photo.photographerName,
       photographerUrl: photo.photographerUrl,
     });
