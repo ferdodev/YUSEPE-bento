@@ -256,23 +256,54 @@ wallpaperCredit.addEventListener('click', (e) => {
 });
 
 // La imagen no se pinta en el grid sino en una capa propia detrás de los
-// tiles: así el zoom es un `transform: scale` sobre el `cover`, sin tocar
-// el layout. El wrapper (overflow: hidden) recorta el desborde del scale
-// para que la imagen agrandada no se salga del área del grid.
+// tiles: así el zoom es un `transform: scale` sobre el encuadre, sin tocar
+// el layout. Tres sub-capas: el backdrop (la misma foto difuminada, que
+// llena el margen cuando la imagen achicada o en "ajustar" no cubre todo),
+// la imagen principal, y un velo negro regulable para el contraste. El
+// wrapper (overflow: hidden) recorta el desborde del scale.
 const wallpaperLayer = document.createElement('div');
 wallpaperLayer.className = 'wallpaper-layer';
+const wallpaperBackdrop = document.createElement('div');
+wallpaperBackdrop.className = 'wallpaper-layer-backdrop';
 const wallpaperImg = document.createElement('div');
 wallpaperImg.className = 'wallpaper-layer-img';
-wallpaperLayer.appendChild(wallpaperImg);
+const wallpaperDim = document.createElement('div');
+wallpaperDim.className = 'wallpaper-layer-dim';
+wallpaperLayer.append(wallpaperBackdrop, wallpaperImg, wallpaperDim);
 wallpaperLayer.style.display = 'none';
 grid.insertBefore(wallpaperLayer, grid.firstChild);
+
+// Los valores vienen del JSON del perfil, que se edita a mano: acá se
+// clampa/whitelistea todo lo que termina en un style inline.
+const WALLPAPER_POSITIONS = new Set([
+  'top left', 'top', 'top right',
+  'left', 'center', 'right',
+  'bottom left', 'bottom', 'bottom right',
+]);
+const clamp = (n, min, max, fallback) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+};
 
 function applyWallpaper(profile) {
   const wp = profile?.wallpaper;
 
   if (wp) {
+    const zoom = clamp(wp.zoom, 0.5, 2, 1);
+    const blur = clamp(wp.blur, 0, 20, 0);
+    const dim = clamp(wp.dim, 0, 0.7, 0);
+    const size = wp.fit === 'contain' ? 'contain' : wp.fit === 'fill' ? '100% 100%' : 'cover';
+    const pos = WALLPAPER_POSITIONS.has(wp.position) ? wp.position : 'center';
+
     wallpaperImg.style.backgroundImage = `url(${wp.url})`;
-    wallpaperImg.style.transform = `scale(${Number(wp.zoom) || 1})`;
+    wallpaperImg.style.backgroundSize = size;
+    wallpaperImg.style.backgroundPosition = pos;
+    // El zoom crece/achica hacia el encuadre elegido, no siempre al centro.
+    wallpaperImg.style.transformOrigin = pos;
+    wallpaperImg.style.transform = `scale(${zoom})`;
+    wallpaperImg.style.filter = blur > 0 ? `blur(${blur}px)` : '';
+    wallpaperBackdrop.style.backgroundImage = `url(${wp.url})`;
+    wallpaperDim.style.opacity = String(dim);
     wallpaperLayer.style.display = '';
     emptyBackdrop.style.display = 'none';
     document.documentElement.style.setProperty('--term-tile-opacity', String(wp.opacity ?? 0.55));
@@ -281,6 +312,7 @@ function applyWallpaper(profile) {
     wallpaperCredit.classList.remove('hidden');
   } else {
     wallpaperImg.style.backgroundImage = '';
+    wallpaperBackdrop.style.backgroundImage = '';
     wallpaperLayer.style.display = 'none';
     emptyBackdrop.style.display = '';
     document.documentElement.style.setProperty('--term-tile-opacity', '1');

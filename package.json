@@ -1,6 +1,6 @@
 {
   "name": "yusepe-bento",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "description": "Hub de WebApps modular con Bento Grid dinámico",
   "main": "out/main/index.js",
   "author": "Joseph Jauregui",

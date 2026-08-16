@@ -102,7 +102,29 @@
   inset: 0;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   transform-origin: center;
+}
+
+/* La misma foto, difuminada y un poco oscurecida, llenando todo: es lo
+   que se ve en los márgenes cuando la imagen principal (achicada o en
+   "ajustar") no cubre el grid — el look de macOS. El scale 1.12 esconde
+   el halo claro que el blur genera en los bordes. */
+.wallpaper-layer-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(24px) brightness(0.75);
+  transform: scale(1.12);
+}
+
+/* Velo negro regulable por encima de la imagen (contraste de los tiles). */
+.wallpaper-layer-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
 }
 
 .xterm-viewport::-webkit-scrollbar {
