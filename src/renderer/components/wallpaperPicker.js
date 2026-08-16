@@ -114,6 +114,7 @@ export function buildWallpaperSection() {
       photographerName,
       photographerUrl,
       opacity: profile.wallpaper?.opacity ?? 0.55,
+      zoom: profile.wallpaper?.zoom ?? 1,
     });
     profile.wallpaper = saved.wallpaper;
     renderCurrent();
@@ -155,6 +156,24 @@ export function buildWallpaperSection() {
       profile.wallpaper = saved.wallpaper;
     }, 150));
 
+    // Zoom sobre el encuadre `cover`: 100% = la imagen justa para cubrir
+    // el grid (comportamiento de siempre); más = acercarse. Se aplica en
+    // vivo por el mismo camino que la transparencia (setWallpaper emite
+    // profile:wallpaper-changed y bentoGrid re-aplica).
+    const zoom = Number(wp.zoom) || 1;
+    const zoomLabel = h('span', { class: 'text-xs text-fg-subtle' },
+      `Zoom del fondo: ${Math.round(zoom * 100)}%`);
+    const zoomSlider = h('input', {
+      type: 'range', min: '1', max: '2', step: '0.05', value: String(zoom),
+      class: 'w-full accent-accent',
+    });
+    zoomSlider.addEventListener('input', debounce(async () => {
+      const z = Number(zoomSlider.value);
+      zoomLabel.textContent = `Zoom del fondo: ${Math.round(z * 100)}%`;
+      const saved = await ProfileManager.setWallpaper(profile.id, { ...profile.wallpaper, zoom: z });
+      profile.wallpaper = saved.wallpaper;
+    }, 150));
+
     const removeBtn = h('button', {
       class: 'text-xs px-2.5 py-1 rounded-md border border-line hover:bg-bg-elev transition mt-2',
       onClick: async () => {
@@ -164,6 +183,10 @@ export function buildWallpaperSection() {
       },
     }, 'Quitar fondo');
 
-    currentEl.append(h('div', { class: 'mt-2' }, [opacityLabel, opacitySlider]), removeBtn);
+    currentEl.append(
+      h('div', { class: 'mt-2' }, [opacityLabel, opacitySlider]),
+      h('div', { class: 'mt-1' }, [zoomLabel, zoomSlider]),
+      removeBtn,
+    );
   }
 }

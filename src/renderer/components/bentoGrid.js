@@ -255,20 +255,33 @@ wallpaperCredit.addEventListener('click', (e) => {
   if (wallpaperCredit.href) window.yusepe.shell.openExternal(wallpaperCredit.href);
 });
 
+// La imagen no se pinta en el grid sino en una capa propia detrás de los
+// tiles: así el zoom es un `transform: scale` sobre el `cover`, sin tocar
+// el layout. El wrapper (overflow: hidden) recorta el desborde del scale
+// para que la imagen agrandada no se salga del área del grid.
+const wallpaperLayer = document.createElement('div');
+wallpaperLayer.className = 'wallpaper-layer';
+const wallpaperImg = document.createElement('div');
+wallpaperImg.className = 'wallpaper-layer-img';
+wallpaperLayer.appendChild(wallpaperImg);
+wallpaperLayer.style.display = 'none';
+grid.insertBefore(wallpaperLayer, grid.firstChild);
+
 function applyWallpaper(profile) {
   const wp = profile?.wallpaper;
 
   if (wp) {
-    grid.style.backgroundImage = `url(${wp.url})`;
-    grid.style.backgroundSize = 'cover';
-    grid.style.backgroundPosition = 'center';
+    wallpaperImg.style.backgroundImage = `url(${wp.url})`;
+    wallpaperImg.style.transform = `scale(${Number(wp.zoom) || 1})`;
+    wallpaperLayer.style.display = '';
     emptyBackdrop.style.display = 'none';
     document.documentElement.style.setProperty('--term-tile-opacity', String(wp.opacity ?? 0.55));
     wallpaperCredit.href = wp.photographerUrl;
     wallpaperCredit.textContent = `Foto de ${wp.photographerName} en Pexels`;
     wallpaperCredit.classList.remove('hidden');
   } else {
-    grid.style.backgroundImage = '';
+    wallpaperImg.style.backgroundImage = '';
+    wallpaperLayer.style.display = 'none';
     emptyBackdrop.style.display = '';
     document.documentElement.style.setProperty('--term-tile-opacity', '1');
     wallpaperCredit.classList.add('hidden');

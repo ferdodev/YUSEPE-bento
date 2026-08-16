@@ -88,6 +88,23 @@
    las reglas de esa capa cuyo selector no aparece en los archivos del
    content, y `.xterm-viewport` lo crea xterm en runtime — adentro de la
    capa, la regla desaparece del bundle en silencio. */
+/* Capa del wallpaper del workspace (ver bentoGrid.js). Fuera de @layer
+   por el mismo motivo que la scrollbar: las clases las crea JS en
+   runtime y Tailwind purgaría la regla dentro de la capa. */
+.wallpaper-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.wallpaper-layer-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform-origin: center;
+}
+
 .xterm-viewport::-webkit-scrollbar {
   width: 10px;
 }
