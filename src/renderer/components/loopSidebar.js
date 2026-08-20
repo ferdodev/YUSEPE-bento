@@ -456,7 +456,7 @@ function messageRow(msg, colors = {}) {
     ? `vos → @${msg.to}`
     : (forMe ? `@${msg.from} → vos` : `@${msg.from} → @${msg.to}`);
 
-  const body = h('div', { class: 'text-xs text-fg whitespace-pre-wrap break-words' }, msg.text);
+  const body = h('div', { class: 'text-xs text-fg whitespace-pre-wrap break-words select-text cursor-text' }, msg.text);
 
   // El nombre del emisor va en su color; el resto del encabezado queda
   // apagado. Así el color aparece dos veces (borde y nombre) y se aprende
@@ -548,6 +548,9 @@ function renderComposer(agents) {
   const previous = composerEl.querySelector('textarea');
   const draft = previous?.value || '';
   const hadFocus = previous && document.activeElement === previous;
+  // Guardar la posición exacta del cursor para restaurarla tras el redibujado.
+  const selStart = previous?.selectionStart ?? draft.length;
+  const selEnd = previous?.selectionEnd ?? draft.length;
 
   composerEl.innerHTML = '';
 
@@ -667,7 +670,7 @@ function renderComposer(agents) {
 
   if (hadFocus) {
     input.focus();
-    input.setSelectionRange(draft.length, draft.length);
+    input.setSelectionRange(selStart, selEnd);
   }
 }
 
