@@ -33,6 +33,7 @@ import { focusTileById } from './bentoGrid.js';
 import { labelFor } from './workspaceManager.js';
 import { applySavedWidth, makeResizeHandle } from '../utils/resizableSidebar.js';
 import { toast } from './toast.js';
+import { notifyUserMessage } from '../core/loopNotify.js';
 
 const WIDTH_OPTS = {
   storageKey: 'yusepe:loop-width',
@@ -116,6 +117,13 @@ let isOpen = false;
 /** A quién le escribe el usuario. Se recuerda entre mensajes. */
 let target = null;
 
+/**
+ * Timestamp del mensaje más reciente para el que ya sonó la notificación.
+ * Se fija a Date.now() al cargar el workspace para no disparar sonidos
+ * sobre mensajes históricos que ya estaban en el archivo.
+ */
+let lastNotifiedAt = 0;
+
 const cwd = () => state.profile?.cwd || null;
 
 export function initLoopSidebar() {
@@ -130,6 +138,8 @@ export function initLoopSidebar() {
   // tiene que seguir andando con el panel cerrado.
   bus.on('profile:loaded', () => {
     target = null;
+    // No notificar mensajes que ya existían al abrir el workspace.
+    lastNotifiedAt = Date.now();
     if (cwd()) window.yusepe.loop.start(cwd());
     if (isOpen) refresh();
   });
@@ -137,8 +147,8 @@ export function initLoopSidebar() {
   bus.on('profile:cleared', () => { closeSidebar(); window.yusepe.loop.stop(); });
 
   // Cambios en disco (los postea el CLI de cada agente, desde otro proceso).
-  window.yusepe.loop.onChanged(() => { if (isOpen) refresh(); });
-  window.yusepe.loop.onDelivered(() => { if (isOpen) refresh(); });
+  window.yusepe.loop.onChanged(() => { if (isOpen) refresh(); checkNotify(); });
+  window.yusepe.loop.onDelivered(() => { if (isOpen) refresh(); checkNotify(); });
   // Un agente que se cae no genera ningún cambio en disco, así que sin
   // este aviso el panel lo seguiría mostrando en verde.
   window.yusepe.loop.onPresence(({ agent, present }) => {
@@ -147,6 +157,28 @@ export function initLoopSidebar() {
       toast.warning(`@${agent} dejó de correr en su terminal — sus mensajes quedan pendientes`);
     }
   });
+}
+
+/**
+ * Revisa si llegaron mensajes nuevos dirigidos al usuario y, si es así,
+ * dispara la notificación sonora + la de sistema (cuando la ventana no
+ * tiene foco). Se llama desde los handlers onChanged / onDelivered,
+ * independientemente de si el panel está abierto o no.
+ */
+async function checkNotify() {
+  if (!cwd() || !lastNotifiedAt) return;
+  try {
+    const messages = await window.yusepe.loop.messages(cwd(), { limit: 20 });
+    const fresh = messages.filter(
+      (m) => m.to === 'usuario' && new Date(m.createdAt).getTime() > lastNotifiedAt,
+    );
+    if (!fresh.length) return;
+    lastNotifiedAt = Math.max(...fresh.map((m) => new Date(m.createdAt).getTime()));
+    const last = fresh[fresh.length - 1];
+    await notifyUserMessage(last.from);
+  } catch {
+    // No bloquear la UI si la notificación falla
+  }
 }
 
 export function isLoopSidebarOpen() {
