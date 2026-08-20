@@ -278,6 +278,10 @@ export function createDispatcher({
       if (watchFs && !unwatch) {
         try { unwatch = watchLoop(cwd, schedule); } catch { /* sigue el poll */ }
       }
+      // `fs.watch` puede perder eventos en Windows (Explorer, Search Indexer,
+      // antivirus). `onChange` acá garantiza que la sidebar se refresca aunque
+      // watchLoop no haya avisado — mismo intervalo que el tick, sin coste extra.
+      onChange();
       tick();
     }, pollMs);
 

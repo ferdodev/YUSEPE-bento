@@ -237,6 +237,15 @@ export async function createTerminalTile(tile, profileId) {
       liveTiles.register(tile.id, {
         profileId, kind: 'terminal', node: root, kill: killReal, meta: { fit, ptyId, term },
       });
+
+      // El mismo binding nombre→ptyId que la rama cached rehace al volver
+      // al workspace (línea 52), pero acá es la primera vez que nace la
+      // terminal: el dispatcher todavía no sabe a qué pty pegarle. Sin
+      // esto, los mensajes llegan al disco pero el dispatcher los descarta
+      // porque bindings.get(name) devuelve undefined.
+      if (tile.loopAgent) {
+        window.yusepe.loop.bind(tile.loopAgent, ptyId);
+      }
     } catch (err) {
       // Sólo sugerir recompilar cuando el problema ES node-pty: para
       // cualquier otro fallo ese consejo despista (p.ej. un cwd inválido).

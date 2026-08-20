@@ -67,11 +67,20 @@ describe('ensureShim', () => {
     expect(content).not.toContain('/v1/bento');
   });
 
-  it('en Windows genera un .cmd', async () => {
+  it('en Windows genera ybento.cmd (CMD/PowerShell) y ybento sin extensión (Git Bash)', async () => {
     const { file } = await ensureShim({
       binDir: binDir(), cliPath: 'C:\\app\\cli.mjs', execPath: 'C:\\app\\bento.exe', platform: 'win32',
     });
+    // file apunta al .cmd (el caso normal de terminal PowerShell)
     expect(path.basename(file)).toBe('ybento.cmd');
+
+    // También tiene que existir el wrapper sh para la herramienta Bash de Claude Code
+    const shFile = path.join(binDir(), 'ybento');
+    const stat = await fs.stat(shFile);
+    expect(stat.isFile()).toBe(true);
+    const content = await fs.readFile(shFile, 'utf8');
+    expect(content).toContain('ELECTRON_RUN_AS_NODE=1');
+    expect(content).not.toMatch(/^\s*exec node /m);
   });
 
   // En macOS la ruta real es ".../Application Support/...": si el quoting

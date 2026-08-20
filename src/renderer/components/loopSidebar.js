@@ -542,6 +542,7 @@ function renderComposer(agents) {
     const text = match && to === match[1].toLowerCase() ? match[2] : raw;
 
     input.value = '';
+    input._reset?.();
     try {
       await window.yusepe.loop.post(cwd(), { from: 'usuario', to, text });
       target = to;
@@ -568,6 +569,42 @@ function renderComposer(agents) {
 
   input.value = draft;
   composerEl.append(pills, input, sendBtn);
+
+  // Auto-resize: parte del tamaño actual (rows="2") y crece con el contenido
+  // hasta que el compositor completo ocupe el 33% del panel. A partir de ahí
+  // el textarea muestra scrollbar interno en vez de seguir empujando el hilo.
+  queueMicrotask(() => {
+    // Alto natural con rows="2" y valor vacío = el mínimo que queremos mantener.
+    const savedVal = input.value;
+    input.value = '';
+    input.style.height = 'auto';
+    const minH = input.scrollHeight;
+    input.value = savedVal;
+
+    const maxComposer = panelEl.offsetHeight * 0.33;
+    const fixed = pills.offsetHeight + sendBtn.offsetHeight + 20; // padding del compositor
+    const maxH = Math.max(minH, maxComposer - fixed);
+
+    const resize = () => {
+      input.style.height = 'auto';
+      const natural = input.scrollHeight;
+      const next = Math.min(Math.max(natural, minH), maxH);
+      input.style.height = `${next}px`;
+      input.style.overflowY = natural > maxH ? 'auto' : 'hidden';
+    };
+
+    input.addEventListener('input', resize);
+
+    // Restaura el alto correcto si había un draft en curso.
+    resize();
+
+    // Usado por send() para volver al tamaño mínimo al enviar.
+    input._reset = () => {
+      input.style.height = `${minH}px`;
+      input.style.overflowY = 'hidden';
+    };
+  });
+
   if (hadFocus) {
     input.focus();
     input.setSelectionRange(draft.length, draft.length);
