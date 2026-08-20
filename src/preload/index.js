@@ -134,7 +134,7 @@ contextBridge.exposeInMainWorld('yusepe', {
     unbind: (name) => ipcRenderer.invoke('loop:unbind', { name }),
 
     start: (cwd) => ipcRenderer.invoke('loop:start', { cwd }),
-    stop: () => ipcRenderer.invoke('loop:stop'),
+    stop: (cwd) => ipcRenderer.invoke('loop:stop', { cwd }),
 
     // Presencia: si el proceso del agente terminó, su terminal volvió al
     // prompt y no se le entrega nada (el mensaje queda pendiente).

@@ -117,6 +117,19 @@ let isOpen = false;
 /** A quién le escribe el usuario. Se recuerda entre mensajes. */
 let target = null;
 
+/* ---------- Modo del loop: un loop a la vez vs. simultáneos ---------- */
+
+const LOOP_MODE_KEY = 'yusepe:loop-mode';
+
+export function getLoopMode() {
+  const v = localStorage.getItem(LOOP_MODE_KEY);
+  return v === 'multi' ? 'multi' : 'single';
+}
+
+export function setLoopMode(mode) {
+  localStorage.setItem(LOOP_MODE_KEY, mode === 'multi' ? 'multi' : 'single');
+}
+
 /* ---------- Estado abierto/cerrado por workspace ---------- */
 
 const LOOP_OPEN_KEY = 'yusepe:loop-open';
@@ -168,7 +181,12 @@ export function initLoopSidebar() {
   bus.on('workspace:left', () => {
     // Guardar el estado actual antes de salir, para restaurarlo al volver.
     persistOpenState(state.profile?.id, isOpen);
-    window.yusepe.loop.stop();
+    // En modo "un loop a la vez", detener el dispatcher de este workspace.
+    // En modo "loops simultáneos", dejarlo corriendo para que los agentes
+    // de este workspace sigan recibiendo mensajes aunque no estemos acá.
+    if (getLoopMode() === 'single') {
+      window.yusepe.loop.stop(cwd());
+    }
   });
   bus.on('profile:cleared', () => { closeSidebar(); window.yusepe.loop.stop(); });
 

@@ -402,8 +402,8 @@ export function registerIpc({ app, profilesDir }) {
     dispatcher.start(cwd);
     return true;
   });
-  ipcMain.handle('loop:stop', () => {
-    dispatcher.stop();
+  ipcMain.handle('loop:stop', (_e, { cwd } = {}) => {
+    dispatcher.stop(cwd || undefined);
     return true;
   });
 

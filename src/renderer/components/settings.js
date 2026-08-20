@@ -11,6 +11,7 @@ import { openModal, closeModal } from './modal.js';
 import { getTheme, applyTheme } from '../core/theme.js';
 import { buildWallpaperSection } from './wallpaperPicker.js';
 import { SOUNDS, getSound, setSound, playSound } from '../core/loopNotify.js';
+import { getLoopMode, setLoopMode } from './loopSidebar.js';
 
 export function openSettings() {
   function themeButton(mode, iconName, label) {
@@ -32,6 +33,55 @@ export function openSettings() {
       themeButton('light', 'sun', 'Claro'),
     ]),
   ]);
+
+  function buildLoopModeSection() {
+    const MODES = [
+      {
+        id: 'single',
+        label: 'Un loop a la vez',
+        desc: 'Al cambiar de espacio, el loop del anterior se pausa.',
+      },
+      {
+        id: 'multi',
+        label: 'Loops simultáneos',
+        desc: 'Los agentes de todos los espacios siguen activos aunque no estés ahí.',
+      },
+    ];
+
+    let currentMode = getLoopMode();
+
+    const rows = MODES.map((mode) => {
+      const radio = h('input', {
+        type: 'radio',
+        name: 'loop-mode',
+        value: mode.id,
+        class: 'w-3 h-3 mt-0.5 shrink-0 cursor-pointer',
+        style: 'accent-color: var(--color-accent)',
+      });
+      if (mode.id === currentMode) radio.checked = true;
+
+      radio.addEventListener('change', () => {
+        currentMode = mode.id;
+        setLoopMode(mode.id);
+      });
+
+      return h('label', {
+        class: 'flex items-start gap-2 py-1 cursor-pointer select-none',
+      }, [
+        radio,
+        h('div', {}, [
+          h('div', { class: 'text-xs text-fg' }, mode.label
+            + (mode.id === 'single' ? ' (predeterminado)' : '')),
+          h('div', { class: 'text-[10px] text-fg-subtle leading-relaxed mt-0.5' }, mode.desc),
+        ]),
+      ]);
+    });
+
+    return h('div', {}, [
+      h('span', { class: 'text-sm text-fg block mb-1' }, 'Modo del loop'),
+      h('div', { class: 'space-y-1' }, rows),
+    ]);
+  }
 
   function buildSoundSection() {
     let currentId = getSound();
@@ -76,6 +126,8 @@ export function openSettings() {
 
   const body = h('div', {}, [
     themeRow,
+    h('div', { class: 'border-t border-line my-4' }),
+    buildLoopModeSection(),
     h('div', { class: 'border-t border-line my-4' }),
     buildSoundSection(),
     h('div', { class: 'border-t border-line my-4' }),

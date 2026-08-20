@@ -111,21 +111,15 @@ export function createDispatcher({
   /** nombre -> { present, foreground, checkedAt } — efímero, como el binding. */
   const presence = new Map();
 
-  let cwd = null;
-  let unwatch = null;
-  let poll = null;
-  let debounce = null;
-
   /**
-   * Las vueltas se encadenan en vez de descartarse.
+   * Estado por workspace vigilado: { poll, unwatch, debounce, chain }.
    *
-   * Antes, una vuelta que llegaba con otra en curso se devolvía vacía. Con
-   * un tick corto casi nunca pasaba; al agregarle una lectura de git la
-   * ventana se ensanchó y empezaron a perderse vueltas. Encolar es lo
-   * correcto igual: "repartí ahora" tiene que repartir, no coincidir con
-   * un hueco libre.
+   * En modo "un loop a la vez" sólo hay una entrada; en modo "loops
+   * simultáneos" puede haber N (una por workspace visitado). Usar un Map
+   * en vez de variables sueltas permite añadir/quitar workspaces sin
+   * tocar los demás ni reinventar la cadena de vueltas de reparto.
    */
-  let chain = Promise.resolve([]);
+  const cwds = new Map();
 
   /**
    * Asocia un agente con la terminal donde está corriendo.
@@ -189,20 +183,21 @@ export function createDispatcher({
   }
 
   /**
-   * Una vuelta de reparto. Devuelve lo que entregó — los tests miran esto,
+   * Una vuelta de reparto para un workspace concreto.
+   * Devuelve lo que entregó — los tests miran esto,
    * y la UI lo usa para pintar el mensaje como enviado.
    */
-  async function runTick() {
-    if (!cwd) return [];
+  async function runTickFor(targetCwd) {
+    if (!targetCwd) return [];
 
-    const ready = await pendingDeliveries(cwd);
+    const ready = await pendingDeliveries(targetCwd);
     const delivered = [];
     // Se lee una vez por vuelta y sólo si hay algo que entregar: hace
     // falta el hilo completo para detectar cruces.
-    const all = ready.length ? await listMessages(cwd) : [];
+    const all = ready.length ? await listMessages(targetCwd) : [];
     // Una lectura de HEAD por vuelta, no por mensaje: sirve para avisar
     // que un reporte describe un árbol que ya avanzó.
-    const head = ready.length ? await readHead(cwd) : null;
+    const head = ready.length ? await readHead(targetCwd) : null;
 
     for (const { agent, messages } of ready) {
       const ptyId = bindings.get(agent.name);
@@ -229,7 +224,7 @@ export function createDispatcher({
 
       // El cursor avanza *después* de escribir: si Bento se cae en el
       // medio, el mensaje se reintenta en vez de perderse.
-      await markDelivered(cwd, agent.name, message.id);
+      await markDelivered(targetCwd, agent.name, message.id);
 
       delivered.push({ agent: agent.name, message });
       onDelivered({ agent: agent.name, message });
@@ -238,75 +233,110 @@ export function createDispatcher({
     return delivered;
   }
 
-  /** Encola una vuelta detrás de la que esté corriendo. */
-  function tick() {
-    chain = chain.then(runTick, runTick);
-    return chain;
+  /** Encola una vuelta para un workspace concreto. */
+  function tickFor(targetCwd) {
+    const state = cwds.get(targetCwd);
+    if (!state) return Promise.resolve([]);
+    state.chain = state.chain.then(
+      () => runTickFor(targetCwd),
+      () => runTickFor(targetCwd),
+    );
+    return state.chain;
   }
 
-  /** Reparte enseguida, agrupando ráfagas de cambios. */
-  function schedule() {
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      debounce = null;
+  /**
+   * Encola una vuelta para TODOS los workspaces vigilados y devuelve
+   * el array combinado. Firma idéntica a la versión anterior: los tests
+   * y la UI siguen usando `dispatcher.tick()` sin cambios.
+   */
+  function tick() {
+    const promises = [...cwds.keys()].map(tickFor);
+    return Promise.all(promises).then((arrays) => arrays.flat());
+  }
+
+  /** Reparte enseguida para un workspace, agrupando ráfagas de cambios. */
+  function scheduleFor(targetCwd) {
+    const state = cwds.get(targetCwd);
+    if (!state) return;
+    if (state.debounce) clearTimeout(state.debounce);
+    state.debounce = setTimeout(() => {
+      state.debounce = null;
       onChange();
-      tick();
+      tickFor(targetCwd);
     }, DEBOUNCE_MS);
   }
 
   /**
-   * Arranca a vigilar el workspace. Idempotente: llamarlo de nuevo con
-   * otro cwd mueve la vigilancia (es lo que pasa al cambiar de perfil).
+   * Arranca a vigilar un workspace. Idempotente: si ya se está vigilando
+   * ese cwd, no hace nada. No detiene otros workspaces activos: en modo
+   * "loops simultáneos" pueden coexistir varios.
+   *
+   * En modo "un loop a la vez", el llamador es responsable de llamar a
+   * `stop(cwdAnterior)` antes de llamar a `start(cwdNuevo)`.
    */
   function start(nextCwd) {
-    stop();
-    cwd = nextCwd;
-    if (!cwd) return;
+    if (!nextCwd || cwds.has(nextCwd)) return; // idempotente
+
+    const state = { poll: null, unwatch: null, debounce: null, chain: Promise.resolve([]) };
+    cwds.set(nextCwd, state);
 
     // `fs.watch` es el camino rápido, pero se pierde eventos según el SO y
     // no existe hasta que exista la carpeta. El intervalo es la red: hace
     // que el loop ande igual, sólo que con hasta POLL_MS de demora.
     if (watchFs) {
       try {
-        unwatch = watchLoop(cwd, schedule);
+        state.unwatch = watchLoop(nextCwd, () => scheduleFor(nextCwd));
       } catch {
-        unwatch = null;
+        state.unwatch = null;
       }
     }
-    poll = setInterval(() => {
+    state.poll = setInterval(() => {
       // Si la carpeta apareció después de arrancar, enganchamos el watch.
-      if (watchFs && !unwatch) {
-        try { unwatch = watchLoop(cwd, schedule); } catch { /* sigue el poll */ }
+      if (watchFs && !state.unwatch) {
+        try { state.unwatch = watchLoop(nextCwd, () => scheduleFor(nextCwd)); } catch { /* sigue el poll */ }
       }
       // `fs.watch` puede perder eventos en Windows (Explorer, Search Indexer,
       // antivirus). `onChange` acá garantiza que la sidebar se refresca aunque
       // watchLoop no haya avisado — mismo intervalo que el tick, sin coste extra.
       onChange();
-      tick();
+      tickFor(nextCwd);
     }, pollMs);
 
-    if (watchFs) schedule();
+    if (watchFs) scheduleFor(nextCwd);
   }
 
-  function stop() {
-    if (debounce) { clearTimeout(debounce); debounce = null; }
-    if (poll) { clearInterval(poll); poll = null; }
-    if (unwatch) { try { unwatch(); } catch { /* noop */ } unwatch = null; }
-    cwd = null;
+  /**
+   * Detiene la vigilancia de un workspace concreto, o de todos si no se
+   * especifica ninguno.
+   *
+   * @param {string} [targetCwd] — si se omite, detiene todos los workspaces.
+   */
+  function stop(targetCwd) {
+    const toStop = targetCwd ? [targetCwd] : [...cwds.keys()];
+    for (const c of toStop) {
+      const state = cwds.get(c);
+      if (!state) continue;
+      if (state.debounce) { clearTimeout(state.debounce); state.debounce = null; }
+      if (state.poll) { clearInterval(state.poll); state.poll = null; }
+      if (state.unwatch) { try { state.unwatch(); } catch { /* noop */ } state.unwatch = null; }
+      cwds.delete(c);
+    }
   }
 
   /**
    * Corta todo, incluidas las asociaciones (al cerrar la app).
    *
-   * Espera la vuelta que esté en curso: `stop()` sólo cancela los timers,
+   * Espera las vueltas en curso: `stop()` sólo cancela los timers,
    * pero un reparto ya arrancado sigue escribiendo en `.ybento/loop/`
    * después. Sin esperarlo, quien limpie detrás (un test que borra su
    * carpeta temporal, o la app cerrando el workspace) corre contra una
    * escritura a medio hacer.
    */
   async function dispose() {
+    // Recolectar chains ANTES de stop(): stop() vacía el Map.
+    const chains = [...cwds.values()].map((s) => s.chain);
     stop();
-    await chain.catch(() => {});
+    await Promise.all(chains.map((c) => c.catch(() => {})));
     bindings.clear();
     presence.clear();
   }
