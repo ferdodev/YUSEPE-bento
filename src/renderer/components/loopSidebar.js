@@ -117,6 +117,26 @@ let isOpen = false;
 /** A quién le escribe el usuario. Se recuerda entre mensajes. */
 let target = null;
 
+/* ---------- Estado abierto/cerrado por workspace ---------- */
+
+const LOOP_OPEN_KEY = 'yusepe:loop-open';
+
+function readOpenStates() {
+  try { return JSON.parse(localStorage.getItem(LOOP_OPEN_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function persistOpenState(profileId, open) {
+  if (!profileId) return;
+  const states = readOpenStates();
+  states[profileId] = open;
+  localStorage.setItem(LOOP_OPEN_KEY, JSON.stringify(states));
+}
+
+function savedOpenState(profileId) {
+  return profileId ? (readOpenStates()[profileId] ?? false) : false;
+}
+
 /**
  * Timestamp del mensaje más reciente para el que ya sonó la notificación.
  * Se fija a Date.now() al cargar el workspace para no disparar sonidos
@@ -141,9 +161,15 @@ export function initLoopSidebar() {
     // No notificar mensajes que ya existían al abrir el workspace.
     lastNotifiedAt = Date.now();
     if (cwd()) window.yusepe.loop.start(cwd());
-    if (isOpen) refresh();
+    // Restaurar el estado abierto/cerrado guardado para este workspace.
+    if (savedOpenState(state.profile?.id)) openSidebar();
+    else closeSidebar();
   });
-  bus.on('workspace:left', () => window.yusepe.loop.stop());
+  bus.on('workspace:left', () => {
+    // Guardar el estado actual antes de salir, para restaurarlo al volver.
+    persistOpenState(state.profile?.id, isOpen);
+    window.yusepe.loop.stop();
+  });
   bus.on('profile:cleared', () => { closeSidebar(); window.yusepe.loop.stop(); });
 
   // Cambios en disco (los postea el CLI de cada agente, desde otro proceso).
@@ -198,6 +224,7 @@ function openSidebar() {
     return;
   }
   isOpen = true;
+  persistOpenState(state.profile?.id, true);
   panelEl.classList.remove('hidden');
   refresh();
 }
@@ -205,6 +232,7 @@ function openSidebar() {
 function closeSidebar() {
   if (!panelEl) return;
   isOpen = false;
+  persistOpenState(state.profile?.id, false);
   panelEl.classList.add('hidden');
 }
 
