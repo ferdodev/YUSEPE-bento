@@ -14,18 +14,33 @@ vía `Proxy` + un event bus.
 
 ## Flujo de trabajo (Spec Driven Development)
 
-**Si una tarea no está en `tasks.md` (raíz), no se ejecuta.**
+**Este flujo es OBLIGATORIO para cualquier feature o fix. No hay excepciones.**
+**Si una tarea no está en `tasks.md` (raíz del proyecto), no se ejecuta.**
 
-El flujo obligatorio para cualquier feature o cambio no trivial es:
+### Pasos
 
-1. **`tasks.md` raíz** — el usuario agrega la tarea en la sección "Pendientes".
-2. **Spec** — Claude crea `spec/features/NNN-nombre/spec.md` (qué hace, por qué, criterios de aceptación).
-3. **Plan** — Claude crea `spec/features/NNN-nombre/plan.md` (enfoque técnico, archivos afectados, riesgos).
-4. **Confirmación** — el usuario aprueba spec + plan antes de que Claude toque código.
-5. **Implementación** — Claude ejecuta siguiendo `spec/features/NNN-nombre/tasks.md`.
-6. **Cierre** — se actualiza `spec/constitution/roadmap.md` (mover a "Hecho") y se hace commit.
+1. **`tasks.md` raíz** — el usuario agrega la tarea bajo "Pendientes" con el formato:
+   ```
+   ### feature: | fix:  Nombre breve
+   - fecha:   YYYY-MM-DD HH:MM
+   - estado:  pendiente
+   - detalle: Qué hay que hacer y por qué.
+   - spec:    —
+   - commit:  —
+   - notas:   —
+   ```
+2. **Spec** — Claude crea `spec/features/NNN-nombre/spec.md`: qué hace, por qué, criterios de aceptación medibles.
+3. **Plan** — Claude crea `spec/features/NNN-nombre/plan.md`: enfoque técnico, archivos afectados, decisiones, riesgos.
+4. **Confirmación** — el usuario aprueba spec + plan. **Claude no toca código hasta recibir aprobación.**
+5. **Implementación** — Claude ejecuta siguiendo `spec/features/NNN-nombre/tasks.md` y actualiza el campo `spec:` en `tasks.md`.
+6. **Cierre** — commit, actualizar `spec/constitution/roadmap.md` (mover a "Hecho"), marcar `estado: hecho` y registrar el `commit:` en `tasks.md`.
 
-La constitución (`spec/constitution/`) manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución. Ver `spec/README.md` para referencia completa.
+### Reglas adicionales
+
+- Los campos `spec:`, `commit:` y `notas:` de `tasks.md` los completa Claude al avanzar; el usuario solo escribe el bloque inicial.
+- Un `fix:` sigue el mismo flujo que un `feature:`, aunque su spec y plan pueden ser más cortos.
+- La constitución (`spec/constitution/`) manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución.
+- Ver `spec/README.md` para referencia completa de la estructura.
 
 ## Reglas de operación
 

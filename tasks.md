@@ -2,28 +2,63 @@
 
 > **Regla principal:** si una tarea no está aquí, no se ejecuta.
 >
-> **Flujo:** agregar tarea acá → Claude crea `spec/features/NNN-nombre/` (spec + plan + tasks) → se implementa → se marca como hecho.
+> **Flujo obligatorio:**
+> 1. Agregar la tarea acá (estado: `pendiente`)
+> 2. Claude crea `spec/features/NNN-nombre/` con spec + plan
+> 3. Confirmar spec + plan antes de tocar código
+> 4. Implementar siguiendo el checklist de la feature
+> 5. Marcar `hecho` y registrar el commit de cierre
+
+---
+
+## Formato de tarea
+
+```
+### tipo: Nombre breve
+- fecha:   YYYY-MM-DD HH:MM
+- estado:  pendiente | en curso | hecho | descartado
+- detalle: Qué hay que hacer y por qué, en dos o tres frases.
+- spec:    spec/features/NNN-nombre/   (se completa al crear la spec)
+- commit:  —                           (se completa al cerrar)
+- notas:   —
+```
+
+`tipo` es `feature:` o `fix:`.
+
+---
 
 ## Pendientes 🔜
 
-_(vacío — agregar acá la próxima tarea a trabajar)_
+_(vacío — agregar acá la próxima tarea)_
+
+---
 
 ## En curso 🔄
 
 _(vacío)_
 
+---
+
 ## Hecho ✅
 
-_(vacío por ahora — el historial de features anteriores está en `spec/constitution/roadmap.md`)_
+_(El historial de features anteriores está en `spec/constitution/roadmap.md`)_
 
 ---
 
-### Cómo agregar una tarea
+## Ejemplos de referencia
 
-Agregar una línea bajo **Pendientes** con el formato:
+### feature: Nombre corto de la feature
+- fecha:   2025-08-22 10:00
+- estado:  pendiente
+- detalle: Descripción clara de qué debe hacer la feature desde el punto de vista del usuario y por qué aporta valor ahora.
+- spec:    —
+- commit:  —
+- notas:   —
 
-```
-- [ ] **<Nombre corto>** — <qué quiero que haga, en una o dos frases>.
-```
-
-Claude tomará esa descripción, creará la carpeta de feature con spec + plan + tasks, pedirá confirmación si algo no está claro y luego implementará.
+### fix: Nombre corto del bug
+- fecha:   2025-08-22 14:30
+- estado:  hecho
+- detalle: El botón X no respondía al hacer click cuando el panel estaba colapsado. Causa: el listener se registraba antes de que el elemento existiera en el DOM.
+- spec:    spec/features/021-fix-boton-x/
+- commit:  a1b2c3d
+- notas:   Solo afectaba al tema oscuro; en claro funcionaba porque el orden de render era distinto.
