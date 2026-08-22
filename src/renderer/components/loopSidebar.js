@@ -668,11 +668,15 @@ function renderComposer(agents) {
     const maxH = Math.max(minH, maxComposer - fixed);
 
     const resize = () => {
+      // Guardar el scroll antes de height='auto': al colapsar el overflow
+      // el navegador fuerza scrollTop=0; sin esto cada pulsación jumpa al inicio.
+      const prevScroll = input.scrollTop;
       input.style.height = 'auto';
       const natural = input.scrollHeight;
       const next = Math.min(Math.max(natural, minH), maxH);
       input.style.height = `${next}px`;
       input.style.overflowY = natural > maxH ? 'auto' : 'hidden';
+      if (natural > maxH) input.scrollTop = prevScroll;
     };
 
     input.addEventListener('input', resize);
@@ -685,13 +689,17 @@ function renderComposer(agents) {
       input.style.height = `${minH}px`;
       input.style.overflowY = 'hidden';
     };
+
+    // Restaurar scroll DESPUÉS de que resize() fije overflow-y:auto.
+    // La secuencia value='' / value=savedVal de arriba ya reseteó scrollTop a 0;
+    // cualquier restauración anterior al microtask queda anulada por eso.
+    if (draft) input.scrollTop = scrollTop;
   });
 
   if (hadFocus) {
     input.focus();
     input.setSelectionRange(selStart, selEnd);
   }
-  if (draft) input.scrollTop = scrollTop;
 }
 
 /* ---------- Alta y edición de agentes ---------- */
