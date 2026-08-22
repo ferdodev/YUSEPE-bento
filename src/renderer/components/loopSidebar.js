@@ -569,6 +569,7 @@ function renderComposer(agents) {
   // Guardar la posición exacta del cursor para restaurarla tras el redibujado.
   const selStart = previous?.selectionStart ?? draft.length;
   const selEnd = previous?.selectionEnd ?? draft.length;
+  const scrollTop = previous?.scrollTop ?? 0;
 
   composerEl.innerHTML = '';
 
@@ -690,6 +691,7 @@ function renderComposer(agents) {
     input.focus();
     input.setSelectionRange(selStart, selEnd);
   }
+  if (draft) input.scrollTop = scrollTop;
 }
 
 /* ---------- Alta y edición de agentes ---------- */

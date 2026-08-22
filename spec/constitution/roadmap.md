@@ -27,6 +27,10 @@
 
 _(vacío — definir la próxima feature en `tasks.md` raíz antes de crear la carpeta de feature)_
 
+## Hecho ✅ (continuación)
+
+21. **021 · fix: Scroll del textarea del compositor** — el textarea del compositor conserva su posición de scroll tras cada refresh del panel.
+
 ## Backlog / ideas 💡
 
 - **Loop: chunking de mensajes largos** — se descartó en sesión 2025-08; el usuario prefiere pasar el mensaje completo sin fragmentar.
