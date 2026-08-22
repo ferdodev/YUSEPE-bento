@@ -32,6 +32,8 @@ _(vacío — definir la próxima feature en `tasks.md` raíz antes de crear la c
 21. **021 · fix: Scroll del textarea del compositor** — el textarea del compositor conserva su posición de scroll tras cada refresh del panel.
 22. **022 · fix: El cursor del compositor salta al final** — el textarea se crea una sola vez en vez de destruirse y recrearse cada 1,5 s; en cada refresh solo se repintan las pills. El cursor se queda donde el usuario lo deja.
 23. **023 · fix: Se pierde la selección del hilo** — `renderStream` pasa a render incremental keyado por `msg.id`: se appendea solo lo nuevo en vez de rehacer las 200 filas. La selección sobrevive y se puede copiar del hilo.
+24. **025 · fix: Mensajes entre agentes quedan escritos pero sin enviar** — el Enter llegaba dentro de la ventana de pegado del TUI en mensajes de más de 2550 chars: `whenIdle()` en `createWriteQueue` + `Promise.race` en el dispatcher, para que espere al drenaje real (e229f21). Incluye la regresión que introdujo ese mismo fix — `dispose()` dejaba los `whenIdle()` sin resolver y colgaba el reparto entero del workspace — cerrada con `notifyIdle()` en `clear()` y el cinturón `IDLE_TIMEOUT_MS` (9cf2501).
+25. **027 · fix: Instrumentación pasiva B1/B2 para diagnosticar truncamiento** — `loopDiag.js` con ventana de captura acotada a la entrega; `ybento diag @agente` imprime veredicto en texto. El bug de truncamiento sigue abierto; esta entrada cierra la instrumentación (ae6aaac).
 
 ## Backlog / ideas 💡
 
