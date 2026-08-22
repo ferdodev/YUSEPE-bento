@@ -12,6 +12,21 @@ una calculadora, un explorador de archivos, un panel de Git, o un panel de
 framework de UI) + TailwindCSS, sin bundler de estado — reactividad manual
 vía `Proxy` + un event bus.
 
+## Flujo de trabajo (Spec Driven Development)
+
+**Si una tarea no está en `tasks.md` (raíz), no se ejecuta.**
+
+El flujo obligatorio para cualquier feature o cambio no trivial es:
+
+1. **`tasks.md` raíz** — el usuario agrega la tarea en la sección "Pendientes".
+2. **Spec** — Claude crea `spec/features/NNN-nombre/spec.md` (qué hace, por qué, criterios de aceptación).
+3. **Plan** — Claude crea `spec/features/NNN-nombre/plan.md` (enfoque técnico, archivos afectados, riesgos).
+4. **Confirmación** — el usuario aprueba spec + plan antes de que Claude toque código.
+5. **Implementación** — Claude ejecuta siguiendo `spec/features/NNN-nombre/tasks.md`.
+6. **Cierre** — se actualiza `spec/constitution/roadmap.md` (mover a "Hecho") y se hace commit.
+
+La constitución (`spec/constitution/`) manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución. Ver `spec/README.md` para referencia completa.
+
 ## Reglas de operación
 
 **Nunca matar ni cerrar la app Bento en ejecución sin confirmación explícita del usuario.**
