@@ -29,6 +29,7 @@ import {
   crossedMessages, formatForTerminal, listMessages, markDelivered,
   normalizeName, pendingDeliveries, readHead, watchLoop,
 } from './loopOps.js';
+import * as diag from './loopDiag.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -263,23 +264,37 @@ export function createDispatcher({
 
       // Sólo el más viejo: el resto espera a que vuelva a `waiting`.
       const message = messages[0];
+      const payload = formatForTerminal(message, {
+        crossed: crossedMessages(all, message),
+        head,
+      });
+
+      // Abre la ventana de captura de diagnóstico: guarda B1 y permite
+      // que la envoltura de ipc.js acumule B2 en los chunks de proc.write.
+      // La ventana se cierra justo después del `\r` para no capturar
+      // el tipeo del usuario fuera de la entrega.
+      diag.arm(ptyId, { agent: agent.name, cwd: targetCwd, messageId: message.id, payload });
 
       // Dos escrituras separadas, no una: ver SUBMIT_DELAY_MS. El texto
       // primero, y el Enter después de que el TUI del agente haya cerrado
       // su ventana de detección de pegado.
-      writeToPty(ptyId, formatForTerminal(message, {
-        crossed: crossedMessages(all, message),
-        head,
-      }));
+      writeToPty(ptyId, payload);
       // Espera el drenaje real, con tope de tiempo: si la cola nunca
       // resuelve (pty muerto sin cerrar la cola), el reparto no se cuelga.
-      await Promise.race([whenIdleForPty(ptyId), sleep(idleTimeoutMs)]);
+      const drenajeVencido = await Promise.race([
+        whenIdleForPty(ptyId).then(() => false),
+        sleep(idleTimeoutMs).then(() => true),
+      ]);
       if (submitDelayMs > 0) await sleep(submitDelayMs);
       writeToPty(ptyId, '\r');
+      diag.disarm(ptyId);
 
       // El cursor avanza *después* de escribir: si Bento se cae en el
       // medio, el mensaje se reintenta en vez de perderse.
       await markDelivered(targetCwd, agent.name, message.id);
+      // Vuelca el registro a disco, fire-and-forget: ningún fallo del
+      // diagnóstico se propaga al camino de entrega.
+      diag.flush(ptyId, { drenajeVencido }).catch(() => {});
 
       delivered.push({ agent: agent.name, message });
       onDelivered({ agent: agent.name, message });

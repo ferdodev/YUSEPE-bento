@@ -22,6 +22,7 @@ import { createDispatcher, looksLikeShell } from './loopDispatcher.js';
 import { buildPtyEnv, ensureShim } from './loopShim.js';
 import { createWriteQueue } from './ptyWriteQueue.js';
 import { SnippetsStore } from './snippetsOps.js';
+import * as diag from './loopDiag.js';
 
 // Carga pty de forma perezosa: si falla (p.ej. sin recompilar)
 // no rompemos el arranque de la app.
@@ -292,7 +293,7 @@ export function registerIpc({ app, profilesDir }) {
     // Todo lo que se escribe al pty pasa por la cola: ConPTY (Windows)
     // pierde input ante escrituras grandes de golpe — de un pegado largo
     // sobrevive sólo la cola. Ver ptyWriteQueue.js.
-    const writer = createWriteQueue((data) => proc.write(data));
+    const writer = createWriteQueue((data) => { diag.chunk(ptyId, data); proc.write(data); });
 
     // `shell` se guarda para la sonda de presencia del loop: sirve para
     // saber si el proceso en primer plano volvió a ser el shell, o sea que
