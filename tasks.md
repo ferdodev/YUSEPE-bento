@@ -35,23 +35,22 @@ _(vacío)_
 
 ## En curso 🔄
 
-### fix: Scroll del textarea del compositor vuelve al inicio en cada refresh
-- fecha:   2026-08-22 00:00
-- estado:  en curso
-- detalle: Cuando el usuario escribe un mensaje largo en el textarea (sección 3
-           de la cabina), el textarea crece con scroll interno. Al llegar un
-           mensaje nuevo de un agente, renderComposer() reconstruye el textarea,
-           restaura el texto y el cursor pero no el scrollTop — el usuario ve el
-           principio del mensaje en vez de donde estaba escribiendo.
-- spec:    spec/features/021-fix-scroll-compositor/
-- commit:  —
-- notas:   —
+_(vacío)_
 
 ---
 
 ## Hecho ✅
 
-_(El historial de features anteriores está en `spec/constitution/roadmap.md`)_
+### fix: Scroll del textarea del compositor vuelve al inicio en cada refresh
+- fecha:   2026-08-22 00:00
+- estado:  hecho
+- detalle: Al llegar un mensaje nuevo de un agente, renderComposer() reconstruía
+           el textarea restaurando texto y cursor pero no scrollTop. El usuario
+           veía el inicio del borrador en vez de donde estaba escribiendo.
+- spec:    spec/features/021-fix-scroll-compositor/
+- commit:  852d4a4
+- notas:   Se restaura cuando hay borrador (no solo con foco): el usuario puede
+           scrollear con la rueda sin hacer click primero.
 
 ---
 
