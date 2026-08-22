@@ -59,6 +59,17 @@ const DEBOUNCE_MS = 120;
  */
 const SUBMIT_DELAY_MS = 250;
 
+/**
+ * Tope máximo para esperar el drenaje de la cola antes de continuar.
+ *
+ * El mensaje más largo observado en campo tiene 13 384 chars:
+ *   (ceil(13 384 / 50) − 1) × 5 ms ≈ 1 335 ms de drenaje.
+ * 5 000 ms triplica ese máximo; si se supera en un loop real, algo en el
+ * pty está mal (proceso muerto sin cerrar la cola, por ejemplo) y esperar
+ * más sólo bloquearía el reparto entero del workspace para siempre.
+ */
+const IDLE_TIMEOUT_MS = 5_000;
+
 /** Shells que, si están en primer plano, significan "acá no hay agente". */
 const SHELL_NAMES = new Set([
   'sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'tcsh', 'csh',
@@ -101,6 +112,7 @@ export function createDispatcher({
   onChange = () => {},
   onPresence = () => {},
   submitDelayMs = SUBMIT_DELAY_MS,
+  idleTimeoutMs = IDLE_TIMEOUT_MS,
   pollMs = POLL_MS,
   // Los tests que cuentan entregas la apagan: si no, sus propias escrituras
   // disparan vueltas de fondo y el conteo depende del reloj.
@@ -259,7 +271,9 @@ export function createDispatcher({
         crossed: crossedMessages(all, message),
         head,
       }));
-      await whenIdleForPty(ptyId);
+      // Espera el drenaje real, con tope de tiempo: si la cola nunca
+      // resuelve (pty muerto sin cerrar la cola), el reparto no se cuelga.
+      await Promise.race([whenIdleForPty(ptyId), sleep(idleTimeoutMs)]);
       if (submitDelayMs > 0) await sleep(submitDelayMs);
       writeToPty(ptyId, '\r');
 

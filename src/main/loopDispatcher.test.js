@@ -423,6 +423,36 @@ describe('ciclo de vida', () => {
   });
 });
 
+// Regresión H7: si whenIdleForPty nunca resuelve (pty muerto sin cerrar la
+// cola), el cinturón de idleTimeoutMs garantiza que el reparto no se cuelgue.
+describe('tolerancia a fallos del drenaje (cinturón)', () => {
+  it('tick termina y entrega a los demás agentes aunque whenIdleForPty no resuelva', async () => {
+    // whenIdleForPty que NUNCA resuelve para pty_claudio
+    const d = createDispatcher({
+      writeToPty: writes.write,
+      whenIdleForPty: (ptyId) => (ptyId === 'pty_claudio' ? new Promise(() => {}) : Promise.resolve()),
+      idleTimeoutMs: 50, // pequeño para que el test no tarde
+      submitDelayMs: 0,
+      pollMs: 60_000,
+      watchFs: false,
+    });
+    d.start(cwd);
+    d.bind('claudio', 'pty_claudio', cwd);
+    d.bind('opencito', 'pty_opencito', cwd);
+
+    await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'para claudio' });
+    await postMessage(cwd, { from: 'usuario', to: 'opencito', text: 'para opencito' });
+
+    try {
+      await d.tick(); // debe terminar en ~50 ms, no colgarse
+      // opencito debe haber recibido su mensaje aunque claudio bloqueó
+      expect(writes.pastes.filter((w) => w.ptyId === 'pty_opencito')).toHaveLength(1);
+    } finally {
+      await d.dispose();
+    }
+  }, 5_000);
+});
+
 // Usa reloj real: verifica que el \r espere el drenaje completo + submitDelay.
 // El doble instantáneo del beforeEach no puede cubrir esto — exactamente el
 // bug que se reportó: para mensajes > 2550 chars el sleep empezaba mientras

@@ -131,4 +131,19 @@ describe('ptyWriteQueue', () => {
 
     expect(write).not.toHaveBeenCalled();
   });
+
+  // Regresión H7: dispose() descartaba la cola sin despertar los whenIdle()
+  // pendientes → el dispatcher quedaba colgado en `await whenIdleForPty` para
+  // siempre, bloqueando el reparto entero del workspace.
+  it('dispose() resuelve las promesas de whenIdle() pendientes', async () => {
+    const q = createWriteQueue(() => {}, { chunkSize: 5, intervalMs: 5 });
+    q.write('123456789'); // 2 chunks: 1o drena síncrono, 2o espera timer
+    const resolved = [];
+    q.whenIdle().then(() => resolved.push('ok'));
+    // en este punto: 1 chunk en cola, timer activo → whenIdle() pendiente
+    q.dispose();
+    // clear() debe llamar notifyIdle() → el callback se encola como microtarea
+    await Promise.resolve();
+    expect(resolved).toEqual(['ok']);
+  });
 });

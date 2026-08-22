@@ -63,6 +63,11 @@ export function createWriteQueue(writeFn, { chunkSize = CHUNK_SIZE, intervalMs =
       clearTimeout(timer);
       timer = null;
     }
+    // Despierta cualquier whenIdle() pendiente: la cola se descartó,
+    // así que no va a haber más drenaje. Cubre dispose() y el catch de
+    // writeFn (proceso muerto). notifyIdle() hace splice(0), por lo que
+    // una segunda llamada en el mismo tick es inofensiva.
+    notifyIdle();
   };
 
   const drain = () => {
@@ -73,8 +78,8 @@ export function createWriteQueue(writeFn, { chunkSize = CHUNK_SIZE, intervalMs =
       writeFn(chunk);
     } catch {
       // El proceso ya murió: lo que quedaba en cola no tiene destino.
+      // clear() llama notifyIdle() internamente.
       clear();
-      notifyIdle();
       return;
     }
     if (queue.length) {
