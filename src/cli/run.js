@@ -344,10 +344,24 @@ export async function run(argv, {
         if (rec.colaVaciadaPorError) print('  ⚠ cola vaciada por error (catch en drain)');
         if (rec.drenajeVencido) print('  ⚠ drenaje venció por tiempo (timeout del dispatcher)');
 
+        // Detecta escrituras ajenas durante la ventana: tipeo del usuario,
+        // snippets o tile.command que llegaron mientras la cola drenaba.
+        // En ese caso el diagnóstico no es confiable y no se acusa a nadie.
+        const b2HasExtraData = rec.b2Len > rec.b1Len + 1;
+
         print('');
 
         // Veredicto: tabla de la spec resuelta en texto
-        if (rec.colaVaciadaPorError || rec.drenajeVencido) {
+        if (b2HasExtraData) {
+          print('Veredicto: escrituras ajenas durante la ventana de captura.');
+          print(`  B2 tiene ${rec.b2Len - rec.b1Len - 1} char(s) de más`
+            + ` (esperado: ${rec.b1Len + 1} chars, recibido: ${rec.b2Len} chars).`);
+          print('  La cola drenó mientras el usuario tipeaba, un snippet se ejecutó');
+          print('  o un tile.command llegó al pty: los chunks ajenos se mezclaron con');
+          print('  el payload y el diagnóstico no es confiable.');
+          print('  → Repetir la captura cuando el agente reciba el próximo mensaje');
+          print('    sin usar esa terminal.');
+        } else if (rec.colaVaciadaPorError || rec.drenajeVencido) {
           print('Veredicto: la cola se vació por error o el drenaje venció por tiempo.');
           print('  La vía de pérdida es el catch/clear() de drain() en createWriteQueue,');
           print('  o el pty tardó más de 5 s en drenar (pty muerto, proceso bloqueado).');

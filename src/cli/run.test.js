@@ -487,4 +487,19 @@ describe('diag', () => {
     expect(code).toBe(0);
     expect(out).toContain('500');
   });
+
+  // C3 del comando: escritura ajena durante la ventana → aviso de contaminación
+  it('avisa contaminación cuando B2 tiene más datos que B1+\\r', async () => {
+    // Simula tipeo del usuario solapado con el drenaje de un mensaje largo:
+    // B2 = payload + tipeo_ajeno + '\r'
+    const b1 = 'mensaje del loop de 50 chars, lorem ipsum dolor sit';
+    const b2 = b1 + 'ls -la\n' + '\r'; // tipeo del usuario se coló
+    await writeRec(makeRec({ b1, b2 }));
+    const { code, out } = await cli(['diag', '@claudio'], { as: 'claudio' });
+    expect(code).toBe(0);
+    expect(out).toContain('ajenas');           // avisa contaminación
+    expect(out).toContain('Repetir');          // pide repetir la captura
+    expect(out).not.toContain('createWriteQueue'); // NO acusa la cola
+    expect(out).not.toContain('node-pty');         // NO acusa node-pty
+  });
 });

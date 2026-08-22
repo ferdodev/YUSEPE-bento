@@ -271,23 +271,27 @@ export function createDispatcher({
 
       // Abre la ventana de captura de diagnóstico: guarda B1 y permite
       // que la envoltura de ipc.js acumule B2 en los chunks de proc.write.
-      // La ventana se cierra justo después del `\r` para no capturar
-      // el tipeo del usuario fuera de la entrega.
+      // La ventana se cierra en el finally para garantizarlo aunque algo
+      // tire: sin esto la sesión quedaría armada y el tipeo posterior del
+      // usuario se acumularía hasta la próxima entrega (fuga de privacidad).
       diag.arm(ptyId, { agent: agent.name, cwd: targetCwd, messageId: message.id, payload });
-
-      // Dos escrituras separadas, no una: ver SUBMIT_DELAY_MS. El texto
-      // primero, y el Enter después de que el TUI del agente haya cerrado
-      // su ventana de detección de pegado.
-      writeToPty(ptyId, payload);
-      // Espera el drenaje real, con tope de tiempo: si la cola nunca
-      // resuelve (pty muerto sin cerrar la cola), el reparto no se cuelga.
-      const drenajeVencido = await Promise.race([
-        whenIdleForPty(ptyId).then(() => false),
-        sleep(idleTimeoutMs).then(() => true),
-      ]);
-      if (submitDelayMs > 0) await sleep(submitDelayMs);
-      writeToPty(ptyId, '\r');
-      diag.disarm(ptyId);
+      let drenajeVencido = false;
+      try {
+        // Dos escrituras separadas, no una: ver SUBMIT_DELAY_MS. El texto
+        // primero, y el Enter después de que el TUI del agente haya cerrado
+        // su ventana de detección de pegado.
+        writeToPty(ptyId, payload);
+        // Espera el drenaje real, con tope de tiempo: si la cola nunca
+        // resuelve (pty muerto sin cerrar la cola), el reparto no se cuelga.
+        drenajeVencido = await Promise.race([
+          whenIdleForPty(ptyId).then(() => false),
+          sleep(idleTimeoutMs).then(() => true),
+        ]);
+        if (submitDelayMs > 0) await sleep(submitDelayMs);
+        writeToPty(ptyId, '\r');
+      } finally {
+        diag.disarm(ptyId);
+      }
 
       // El cursor avanza *después* de escribir: si Bento se cae en el
       // medio, el mensaje se reintenta en vez de perderse.
