@@ -95,6 +95,7 @@ export function looksLikeShell({ process: foreground, shell } = {}) {
  */
 export function createDispatcher({
   writeToPty,
+  whenIdleForPty = () => Promise.resolve(),
   probePty = null,
   onDelivered = () => {},
   onChange = () => {},
@@ -258,6 +259,7 @@ export function createDispatcher({
         crossed: crossedMessages(all, message),
         head,
       }));
+      await whenIdleForPty(ptyId);
       if (submitDelayMs > 0) await sleep(submitDelayMs);
       writeToPty(ptyId, '\r');
 

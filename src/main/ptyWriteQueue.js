@@ -50,6 +50,12 @@ export function createWriteQueue(writeFn, { chunkSize = CHUNK_SIZE, intervalMs =
   const queue = [];
   let timer = null;
   let disposed = false;
+  const idleCallbacks = [];
+
+  function notifyIdle() {
+    const cbs = idleCallbacks.splice(0);
+    for (const cb of cbs) cb();
+  }
 
   const clear = () => {
     queue.length = 0;
@@ -62,15 +68,20 @@ export function createWriteQueue(writeFn, { chunkSize = CHUNK_SIZE, intervalMs =
   const drain = () => {
     timer = null;
     const chunk = queue.shift();
-    if (chunk === undefined) return;
+    if (chunk === undefined) { notifyIdle(); return; }
     try {
       writeFn(chunk);
     } catch {
       // El proceso ya murió: lo que quedaba en cola no tiene destino.
       clear();
+      notifyIdle();
       return;
     }
-    if (queue.length) timer = setTimeout(drain, intervalMs);
+    if (queue.length) {
+      timer = setTimeout(drain, intervalMs);
+    } else {
+      notifyIdle();
+    }
   };
 
   return {
@@ -102,6 +113,11 @@ export function createWriteQueue(writeFn, { chunkSize = CHUNK_SIZE, intervalMs =
         i = end;
       }
       if (timer === null) drain();
+    },
+
+    whenIdle() {
+      if (!queue.length && timer === null) return Promise.resolve();
+      return new Promise((resolve) => idleCallbacks.push(resolve));
     },
 
     dispose() {

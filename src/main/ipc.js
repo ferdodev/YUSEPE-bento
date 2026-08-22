@@ -345,6 +345,10 @@ export function registerIpc({ app, profilesDir }) {
       const entry = ptys.get(ptyId);
       if (entry) entry.writer.write(data);
     },
+    whenIdleForPty: (ptyId) => {
+      const entry = ptys.get(ptyId);
+      return entry ? entry.writer.whenIdle() : Promise.resolve();
+    },
     // `proc.process` es el proceso en primer plano del pty: `claude` o
     // `node` mientras el agente vive, y el shell cuando ya salió.
     probePty: (ptyId) => {

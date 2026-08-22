@@ -16,6 +16,7 @@ import os from 'os';
 import path from 'path';
 import { createDispatcher } from './loopDispatcher.js';
 import { getAgent, inbox, listMessages, markDelivered, postMessage, registerAgent, setAgentState } from './loopOps.js';
+import { createWriteQueue } from './ptyWriteQueue.js';
 
 let cwd;
 let writes;
@@ -420,4 +421,57 @@ describe('ciclo de vida', () => {
     await Promise.all([dispatcher.tick(), dispatcher.tick(), dispatcher.tick()]);
     expect(writes.pastes).toHaveLength(1);
   });
+});
+
+// Usa reloj real: verifica que el \r espere el drenaje completo + submitDelay.
+// El doble instantáneo del beforeEach no puede cubrir esto — exactamente el
+// bug que se reportó: para mensajes > 2550 chars el sleep empezaba mientras
+// la cola aún drenaba, y el \r llegaba sólo 5 ms después del último chunk.
+describe('sincronización del Enter con el drenaje de la cola', () => {
+  it('el \\r llega después del drenaje completo + submitDelay para mensajes grandes', async () => {
+    const submitDelayMs = 30;
+    // 500 chars → 10 chunks → 9 intervalos × 5 ms = 45 ms de drenaje > submitDelayMs.
+    // Se suma el texto del encabezado de formatForTerminal (~80 chars),
+    // así que en la práctica son ~12 chunks y ~55 ms de drenaje.
+    const bigText = 'x'.repeat(500);
+
+    // Escrituras reales al "pty" (timestamps del nivel writeFn)
+    const physLog = [];
+    const writer = createWriteQueue((data) => physLog.push({ data, ts: Date.now() }));
+
+    const testCwd = await fs.mkdtemp(path.join(os.tmpdir(), 'yusepe-drain-test-'));
+    const testDispatcher = createDispatcher({
+      writeToPty: (_ptyId, data) => writer.write(data),
+      whenIdleForPty: (_ptyId) => writer.whenIdle(),
+      submitDelayMs,
+      pollMs: 60_000,
+      watchFs: false,
+    });
+    try {
+      await registerAgent(testCwd, { name: 'claudio', role: 'codifica' });
+      testDispatcher.start(testCwd);
+      testDispatcher.bind('claudio', 'pty_1', testCwd);
+
+      await postMessage(testCwd, { from: 'usuario', to: 'claudio', text: bigText });
+      await testDispatcher.tick();
+
+      // Debe haber al menos 2 escrituras físicas: algún chunk de texto y el \r.
+      expect(physLog.length).toBeGreaterThanOrEqual(2);
+
+      const enterIdx = physLog.findLastIndex((w) => w.data === '\r');
+      expect(enterIdx).toBeGreaterThan(0);
+
+      // El \r es el último write
+      expect(enterIdx).toBe(physLog.length - 1);
+
+      // Gap entre el último chunk de texto y el \r >= submitDelayMs:
+      // el sleep empieza DESPUÉS del drenaje, no mientras drena.
+      const lastTextTs = physLog[enterIdx - 1].ts;
+      const enterTs = physLog[enterIdx].ts;
+      expect(enterTs - lastTextTs).toBeGreaterThanOrEqual(submitDelayMs);
+    } finally {
+      await testDispatcher.dispose();
+      await fs.rm(testCwd, { recursive: true, force: true });
+    }
+  }, 10_000);
 });
