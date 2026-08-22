@@ -126,6 +126,11 @@ let composerInput = null;
 let composerSendBtn = null;
 let composerNoAgentsEl = null;
 
+/* Estado del render incremental del hilo (spec 023).
+ * Ids en el orden del DOM y firma de colores para detectar cuándo reconstruir. */
+let renderedIds = [];
+let renderedSig = null;
+
 /* ---------- Modo del loop: un loop a la vez vs. simultáneos ---------- */
 
 const LOOP_MODE_KEY = 'yusepe:loop-mode';
@@ -180,6 +185,9 @@ export function initLoopSidebar() {
   // tiene que seguir andando con el panel cerrado.
   bus.on('profile:loaded', () => {
     target = null;
+    // Resetear el render incremental: ids de otro workspace no deben colarse.
+    renderedIds = [];
+    renderedSig = null;
     // No notificar mensajes que ya existían al abrir el workspace.
     lastNotifiedAt = Date.now();
     if (cwd()) window.yusepe.loop.start(cwd());
@@ -270,6 +278,7 @@ function buildChrome() {
   // Resetear estado persistente: el DOM fue destruido, hay que recrearlo.
   currentAgents = []; composerBoxEl = null; pillsContainerEl = null;
   composerInput = null; composerSendBtn = null; composerNoAgentsEl = null;
+  renderedIds = []; renderedSig = null;
 
   const title = h('div', { class: 'text-xs text-fg-soft flex-1 flex items-center gap-1.5' }, [
     h('span', { class: 'text-accent-soft flex items-center' }, svgIcon('loop', { size: 14 })),
@@ -451,15 +460,27 @@ function agentRow(agent, presence) {
 
 /* ---------- Hilo de mensajes ---------- */
 
+/**
+ * Reconstrucción completa del hilo: borra todo y rehace desde cero.
+ * Es la "red" del render incremental — se usa cuando el caso feliz
+ * no aplica (firma de colores cambió, ids fuera de orden, archivo rehecho).
+ * El peor caso sigue siendo el comportamiento anterior.
+ */
+function rebuildStream(messages, colors) {
+  streamEl.innerHTML = '';
+  for (const msg of messages) streamEl.append(messageRow(msg, colors));
+  renderedIds = messages.map((m) => m.id);
+  renderedSig = JSON.stringify(colors);
+}
+
 function renderStream(messages, agents) {
-  // Si el usuario está leyendo historial más arriba, no lo arrastramos al
-  // fondo porque otro agente acaba de postear. Convención de chat: sólo
-  // sigue solo cuando ya estabas mirando lo último.
+  // Calcular ANTES de tocar el DOM: innerHTML='' recorta scrollTop a 0.
   const atBottom = streamEl.scrollHeight - streamEl.scrollTop - streamEl.clientHeight < 40;
 
-  streamEl.innerHTML = '';
-
   if (!messages.length) {
+    // Vacío explícito: sin esto los nodos persistentes quedan como fantasmas.
+    streamEl.innerHTML = '';
+    renderedIds = [];
     emptyEl.classList.remove('hidden');
     emptyEl.textContent = agents.length
       ? 'Sin mensajes todavía. Escribile a una terminal desde abajo y arranca el loop.'
@@ -468,14 +489,69 @@ function renderStream(messages, agents) {
   }
   emptyEl.classList.add('hidden');
 
-  // El color es el del *emisor*: lo que se busca al barrer el hilo con la
-  // vista es "qué dijo @qa", no a quién se lo dijo.
+  // El color es el del *emisor*: lo que se busca al barrer el hilo es
+  // "qué dijo @qa", no a quién se lo dijo.
   const colors = Object.fromEntries(agents.map((a) => [a.name, colorOf(a)]));
+  const sig = JSON.stringify(colors);
 
-  for (const msg of messages) streamEl.append(messageRow(msg, colors));
-  if (atBottom) {
-    queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
+  // RED: la firma de colores cambió (agente renombrado, color editado,
+  // agente nuevo o que salió). Evento raro, siempre disparado por el usuario
+  // desde un modal, no por el poll — el parpadeo es aceptable.
+  if (sig !== renderedSig) {
+    rebuildStream(messages, colors);
+    if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
+    return;
   }
+
+  const newIds = messages.map((m) => m.id);
+
+  // ¿Qué ids de renderedIds siguen en la lista nueva?
+  const kept = renderedIds.filter((id) => newIds.includes(id));
+
+  // RED: todos los ids previos desaparecieron (archivo borrado o workspace
+  // cambiado pese al reset en profile:loaded).
+  if (renderedIds.length > 0 && kept.length === 0) {
+    rebuildStream(messages, colors);
+    if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
+    return;
+  }
+
+  // RED: los ids que sobreviven no son un prefijo de newIds.
+  // Ocurre si el archivo fue truncado o si una lectura parcial corrió los seq
+  // (caso documentado en spec 023: la clave es id, no seq).
+  if (kept.some((id, i) => id !== newIds[i])) {
+    rebuildStream(messages, colors);
+    if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
+    return;
+  }
+
+  // Camino incremental.
+
+  // 1. Sacar por arriba los ids que ya no están en la ventana de 200.
+  const toRemove = renderedIds.length - kept.length;
+  if (toRemove > 0) {
+    // Medir altura total de las filas que salen ANTES de quitarlas.
+    let removedHeight = 0;
+    for (let i = 0; i < toRemove; i++) {
+      const el = streamEl.children[i];
+      if (el) removedHeight += el.offsetHeight;
+    }
+    for (let i = 0; i < toRemove; i++) {
+      if (streamEl.firstChild) streamEl.removeChild(streamEl.firstChild);
+    }
+    // Compensar scrollTop para que la posición de lectura no salte.
+    if (!atBottom) streamEl.scrollTop = Math.max(0, streamEl.scrollTop - removedHeight);
+  }
+
+  // 2. Appendear los ids nuevos (los que no estaban en DOM).
+  const renderedSet = new Set(renderedIds);
+  for (const msg of messages) {
+    if (!renderedSet.has(msg.id)) streamEl.append(messageRow(msg, colors));
+  }
+
+  renderedIds = newIds;
+
+  if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
 }
 
 function messageRow(msg, colors = {}) {
