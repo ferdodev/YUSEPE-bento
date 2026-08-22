@@ -30,6 +30,8 @@ _(vacío — definir la próxima feature en `tasks.md` raíz antes de crear la c
 ## Hecho ✅ (continuación)
 
 21. **021 · fix: Scroll del textarea del compositor** — el textarea del compositor conserva su posición de scroll tras cada refresh del panel.
+22. **022 · fix: El cursor del compositor salta al final** — el textarea se crea una sola vez en vez de destruirse y recrearse cada 1,5 s; en cada refresh solo se repintan las pills. El cursor se queda donde el usuario lo deja.
+23. **023 · fix: Se pierde la selección del hilo** — `renderStream` pasa a render incremental keyado por `msg.id`: se appendea solo lo nuevo en vez de rehacer las 200 filas. La selección sobrevive y se puede copiar del hilo.
 
 ## Backlog / ideas 💡
 
