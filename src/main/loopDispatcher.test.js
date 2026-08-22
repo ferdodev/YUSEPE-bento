@@ -241,7 +241,7 @@ describe('presencia del agente', () => {
       watchFs: false,
     });
     d.start(cwd);
-    d.bind('claudio', 'pty_claudio');
+    d.bind('claudio', 'pty_claudio', cwd);
     return { w, d };
   }
 
@@ -299,7 +299,7 @@ describe('presencia del agente', () => {
         writeToPty: w.write, probePty: probe, submitDelayMs: 0, pollMs: 60_000, watchFs: false,
       });
       d.start(cwd);
-      d.bind('claudio', 'pty_claudio');
+      d.bind('claudio', 'pty_claudio', cwd);
       try {
         await postMessage(cwd, { from: 'opencito', to: 'claudio', text: 'hola' });
         await d.tick();
@@ -322,7 +322,7 @@ describe('presencia del agente', () => {
       watchFs: false,
     });
     d.start(cwd);
-    d.bind('claudio', 'pty_claudio');
+    d.bind('claudio', 'pty_claudio', cwd);
 
     try {
       await postMessage(cwd, { from: 'opencito', to: 'claudio', text: 'uno' });
@@ -337,7 +337,7 @@ describe('presencia del agente', () => {
 
       // Un solo aviso de caída, no uno por vuelta del poll.
       expect(avisos.filter((a) => a.present === false)).toHaveLength(1);
-      expect(d.presence().claudio.present).toBe(false);
+      expect(d.presence(cwd).claudio.present).toBe(false);
     } finally { await d.dispose(); }
   });
 });
