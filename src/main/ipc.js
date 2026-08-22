@@ -358,7 +358,7 @@ export function registerIpc({ app, profilesDir }) {
 
   ipcMain.handle('loop:agents', (_e, { cwd }) => loopOps.listAgents(cwd));
   // Presencia: viva sólo en memoria, como el binding nombre->pty.
-  ipcMain.handle('loop:presence', () => dispatcher.presence());
+  ipcMain.handle('loop:presence', (_e, { cwd } = {}) => dispatcher.presence(cwd));
   // ¿Esa terminal está en el prompt del shell? Se consulta antes de
   // tipearle un `export`: si adentro hay un agente corriendo, ese texto le
   // entraría como si fuera un mensaje del usuario.
@@ -370,7 +370,7 @@ export function registerIpc({ app, profilesDir }) {
   ipcMain.handle('loop:register', (_e, { cwd, name, role, tileId, color }) =>
     loopOps.registerAgent(cwd, { name, role, tileId, color }));
   ipcMain.handle('loop:unregister', (_e, { cwd, name }) => {
-    dispatcher.unbind(name);
+    dispatcher.unbind(name, cwd);
     return loopOps.unregisterAgent(cwd, name);
   });
   ipcMain.handle('loop:set-state', (_e, { cwd, name, state }) =>
@@ -388,12 +388,12 @@ export function registerIpc({ app, profilesDir }) {
 
   // Asocia un agente con la terminal donde corre. Es efímero a propósito
   // (ver la cabecera de loopDispatcher.js): el ptyId muere con la terminal.
-  ipcMain.handle('loop:bind', (_e, { name, ptyId }) => {
-    dispatcher.bind(name, ptyId);
+  ipcMain.handle('loop:bind', (_e, { name, ptyId, cwd }) => {
+    dispatcher.bind(name, ptyId, cwd);
     return true;
   });
-  ipcMain.handle('loop:unbind', (_e, { name }) => {
-    dispatcher.unbind(name);
+  ipcMain.handle('loop:unbind', (_e, { name, cwd }) => {
+    dispatcher.unbind(name, cwd);
     return true;
   });
 

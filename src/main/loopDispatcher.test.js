@@ -80,14 +80,14 @@ describe('binding de agentes a terminales', () => {
   });
 
   it('normaliza el nombre al asociar', async () => {
-    dispatcher.bind('@Claudio', 'pty_1');
-    expect(dispatcher.boundAgents()).toEqual(['claudio']);
+    dispatcher.bind('@Claudio', 'pty_1', cwd);
+    expect(dispatcher.boundAgents(cwd)).toEqual(['claudio']);
   });
 
   it('unbind corta la entrega', async () => {
     start();
-    dispatcher.bind('claudio', 'pty_1');
-    dispatcher.unbind('claudio');
+    dispatcher.bind('claudio', 'pty_1', cwd);
+    dispatcher.unbind('claudio', cwd);
     await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'hola' });
 
     expect(await dispatcher.tick()).toEqual([]);
@@ -97,8 +97,8 @@ describe('binding de agentes a terminales', () => {
 describe('entrega', () => {
   beforeEach(() => {
     start();
-    dispatcher.bind('claudio', 'pty_claudio');
-    dispatcher.bind('opencito', 'pty_opencito');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
+    dispatcher.bind('opencito', 'pty_opencito', cwd);
   });
 
   it('pega el mensaje en la terminal correcta', async () => {
@@ -202,7 +202,7 @@ describe('entrega', () => {
 describe('el gate de estado', () => {
   beforeEach(() => {
     start();
-    dispatcher.bind('claudio', 'pty_claudio');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
   });
 
   // La razón de ser de status.json: escribir en el pty de un agente que
@@ -344,7 +344,7 @@ describe('presencia del agente', () => {
 
 describe('ciclo de vida', () => {
   it('sin start no reparte nada', async () => {
-    dispatcher.bind('claudio', 'pty_claudio');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
     await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'hola' });
 
     expect(await dispatcher.tick()).toEqual([]);
@@ -353,7 +353,7 @@ describe('ciclo de vida', () => {
 
   it('stop corta la entrega', async () => {
     start();
-    dispatcher.bind('claudio', 'pty_claudio');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
     dispatcher.stop();
 
     await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'hola' });
@@ -364,7 +364,7 @@ describe('ciclo de vida', () => {
     const otro = await fs.mkdtemp(path.join(os.tmpdir(), 'yusepe-dispatch-otro-'));
     try {
       await registerAgent(otro, { name: 'claudio' });
-      dispatcher.bind('claudio', 'pty_claudio');
+      dispatcher.bind('claudio', 'pty_claudio', cwd);
 
       start();
       dispatcher.start(otro);
@@ -391,7 +391,7 @@ describe('ciclo de vida', () => {
       writeToPty: writes.write, submitDelayMs: 0, pollMs: 150, watchFs: true,
     });
     start();
-    dispatcher.bind('claudio', 'pty_claudio');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
     await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'automático' });
 
     // Sin tick() explícito: lo tiene que disparar el watch o el poll.
@@ -414,7 +414,7 @@ describe('ciclo de vida', () => {
 
   it('dos vueltas simultáneas no entregan el mismo mensaje dos veces', async () => {
     start();
-    dispatcher.bind('claudio', 'pty_claudio');
+    dispatcher.bind('claudio', 'pty_claudio', cwd);
     await postMessage(cwd, { from: 'usuario', to: 'claudio', text: 'una sola vez' });
 
     await Promise.all([dispatcher.tick(), dispatcher.tick(), dispatcher.tick()]);

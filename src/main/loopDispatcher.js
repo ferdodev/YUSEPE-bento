@@ -105,11 +105,31 @@ export function createDispatcher({
   // disparan vueltas de fondo y el conteo depende del reloj.
   watchFs = true,
 } = {}) {
-  /** nombre de agente -> ptyId (efímero, ver cabecera) */
-  const bindings = new Map();
+  /**
+   * Bindings y presencia indexados por workspace (cwd → Map).
+   *
+   * Antes eran mapas globales compartidos: en modo "loops simultáneos",
+   * si dos workspaces tenían un agente con el mismo nombre, el segundo
+   * `bind` sobreescribía el primero y los mensajes llegaban a la terminal
+   * equivocada. Al indexarlos por cwd cada workspace tiene su propio
+   * espacio de nombres.
+   *
+   * bindingsFor / presenceFor auto-inicializan la entrada: `bind` puede
+   * llamarse antes de `start` (liveTiles monta terminales en el mismo
+   * tick que el IPC de start) sin perder nada.
+   */
+  const allBindings = new Map(); // cwd -> Map<normalizedName, ptyId>
+  const allPresence = new Map(); // cwd -> Map<normalizedName, {present,foreground,checkedAt}>
 
-  /** nombre -> { present, foreground, checkedAt } — efímero, como el binding. */
-  const presence = new Map();
+  function bindingsFor(targetCwd) {
+    if (!allBindings.has(targetCwd)) allBindings.set(targetCwd, new Map());
+    return allBindings.get(targetCwd);
+  }
+
+  function presenceFor(targetCwd) {
+    if (!allPresence.has(targetCwd)) allPresence.set(targetCwd, new Map());
+    return allPresence.get(targetCwd);
+  }
 
   /**
    * Estado por workspace vigilado: { poll, unwatch, debounce, chain }.
@@ -124,34 +144,37 @@ export function createDispatcher({
   /**
    * Asocia un agente con la terminal donde está corriendo.
    * Sin binding no se le entrega nada: el mensaje queda en su bandeja.
+   *
+   * @param {string} name
+   * @param {string} ptyId
+   * @param {string} cwd  workspace al que pertenece el agente
    */
-  function bind(name, ptyId) {
-    bindings.set(normalizeName(name), ptyId);
+  function bind(name, ptyId, cwd) {
+    bindingsFor(cwd).set(normalizeName(name), ptyId);
   }
 
-  function unbind(name) {
+  /**
+   * @param {string} name
+   * @param {string} [cwd]  si se omite, quita el agente de todos los workspaces
+   */
+  function unbind(name, cwd) {
     const id = normalizeName(name);
-    bindings.delete(id);
-    presence.delete(id);
+    if (cwd) {
+      bindingsFor(cwd).delete(id);
+      presenceFor(cwd).delete(id);
+    } else {
+      for (const b of allBindings.values()) b.delete(id);
+      for (const p of allPresence.values()) p.delete(id);
+    }
   }
 
   /**
    * ¿Sigue habiendo un agente escuchando en esa terminal?
    *
-   * Sin esto, cuando el proceso del agente termina la terminal vuelve al
-   * prompt, nosotros le pegamos igual, avanzamos el cursor... y el mensaje
-   * queda leído por nadie. Peor: silenciosamente, porque en el panel se ve
-   * entregado.
-   *
-   * El detector es el proceso en primer plano del pty: si es el shell,
-   * significa que el agente ya no está corriendo ahí. Cuando Claude Code u
-   * opencode están vivos, el primer plano es su propio proceso.
-   *
-   * Ante la duda (sin sonda disponible, o el pty no sabe responder) se
-   * asume presente: preferimos entregar de más antes que dejar mudo un
-   * loop que en realidad estaba sano.
+   * Recibe el Map de presencia del workspace concreto para no mezclar
+   * estado de presencia entre workspaces distintos.
    */
-  function checkPresence(name, ptyId) {
+  function checkPresence(name, ptyId, pMap) {
     if (!probePty) return true;
 
     let info = null;
@@ -165,21 +188,34 @@ export function createDispatcher({
     const foreground = shellName(info.process);
     const present = !looksLikeShell(info);
 
-    const previous = presence.get(name);
-    presence.set(name, { present, foreground, checkedAt: new Date().toISOString() });
+    const previous = pMap.get(name);
+    pMap.set(name, { present, foreground, checkedAt: new Date().toISOString() });
     if (!previous || previous.present !== present) {
       onPresence({ agent: name, present, foreground });
     }
     return present;
   }
 
-  /** Estado de presencia conocido, para pintarlo en el panel. */
-  function presenceSnapshot() {
-    return Object.fromEntries(presence);
+  /**
+   * Estado de presencia conocido, para pintarlo en el panel.
+   *
+   * @param {string} [targetCwd]  si se omite, fusiona todos los workspaces
+   */
+  function presenceSnapshot(targetCwd) {
+    if (targetCwd) return Object.fromEntries(presenceFor(targetCwd));
+    const merged = {};
+    for (const p of allPresence.values()) {
+      for (const [k, v] of p) merged[k] = v;
+    }
+    return merged;
   }
 
-  function boundAgents() {
-    return [...bindings.keys()];
+  /** @param {string} [targetCwd]  si se omite, devuelve todos los workspaces */
+  function boundAgents(targetCwd) {
+    if (targetCwd) return [...bindingsFor(targetCwd).keys()];
+    const all = new Set();
+    for (const b of allBindings.values()) for (const k of b.keys()) all.add(k);
+    return [...all];
   }
 
   /**
@@ -189,6 +225,9 @@ export function createDispatcher({
    */
   async function runTickFor(targetCwd) {
     if (!targetCwd) return [];
+
+    const cwdBindings = bindingsFor(targetCwd);
+    const cwdPresence = presenceFor(targetCwd);
 
     const ready = await pendingDeliveries(targetCwd);
     const delivered = [];
@@ -200,14 +239,14 @@ export function createDispatcher({
     const head = ready.length ? await readHead(targetCwd) : null;
 
     for (const { agent, messages } of ready) {
-      const ptyId = bindings.get(agent.name);
+      const ptyId = cwdBindings.get(agent.name);
       if (!ptyId) continue; // sin terminal asociada: se queda en la bandeja
 
       // Si el agente ya no está corriendo en esa terminal, NO se entrega
       // y el cursor no avanza: el mensaje sigue pendiente y aparece como
       // tal en el panel. Un mensaje sin leer es recuperable; uno marcado
       // como entregado que nadie leyó, no.
-      if (!checkPresence(agent.name, ptyId)) continue;
+      if (!checkPresence(agent.name, ptyId, cwdPresence)) continue;
 
       // Sólo el más viejo: el resto espera a que vuelva a `waiting`.
       const message = messages[0];
@@ -337,8 +376,8 @@ export function createDispatcher({
     const chains = [...cwds.values()].map((s) => s.chain);
     stop();
     await Promise.all(chains.map((c) => c.catch(() => {})));
-    bindings.clear();
-    presence.clear();
+    allBindings.clear();
+    allPresence.clear();
   }
 
   return {

@@ -296,7 +296,7 @@ async function refresh() {
     const [agents, messages, presence] = await Promise.all([
       window.yusepe.loop.agents(cwd()),
       window.yusepe.loop.messages(cwd(), { limit: 200 }),
-      window.yusepe.loop.presence(),
+      window.yusepe.loop.presence(cwd()),
     ]);
     renderRoster(agents, presence || {});
     renderStream(messages, agents);
@@ -943,7 +943,7 @@ async function bindTerminal(tile, name) {
   const ptyId = entry?.kind === 'terminal' ? entry.meta?.ptyId : null;
   if (!ptyId) return;
 
-  await window.yusepe.loop.bind(name, ptyId);
+  await window.yusepe.loop.bind(name, ptyId, cwd());
 
   // El `export` sólo si la terminal está en el prompt del shell. Si adentro
   // ya hay un agente corriendo, ese texto le entra como si fuera un mensaje

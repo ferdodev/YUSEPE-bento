@@ -50,7 +50,7 @@ export async function createTerminalTile(tile, profileId) {
     // rehacerla al volver a este workspace o el repartidor no sabría a qué
     // terminal pegarle.
     if (tile.loopAgent && cached.meta?.ptyId) {
-      window.yusepe.loop.bind(tile.loopAgent, cached.meta.ptyId);
+      window.yusepe.loop.bind(tile.loopAgent, cached.meta.ptyId, state.profile?.cwd);
     }
     return { root: cached.node, shutdown: () => {} };
   }
@@ -244,7 +244,7 @@ export async function createTerminalTile(tile, profileId) {
       // esto, los mensajes llegan al disco pero el dispatcher los descarta
       // porque bindings.get(name) devuelve undefined.
       if (tile.loopAgent) {
-        window.yusepe.loop.bind(tile.loopAgent, ptyId);
+        window.yusepe.loop.bind(tile.loopAgent, ptyId, state.profile?.cwd);
       }
     } catch (err) {
       // Sólo sugerir recompilar cuando el problema ES node-pty: para
