@@ -684,6 +684,10 @@ function ensureComposerBox() {
       await refresh();
     } catch (err) {
       composerInput.value = raw;
+      // Asignar .value por código no dispara 'input', así que resize() no corre
+      // sola: el borrador vuelve pero la caja queda en la altura mínima con
+      // overflow oculto. Hay que llamarla explícitamente.
+      resize();
       toast.error(err?.message || String(err));
     }
   };
@@ -760,8 +764,9 @@ function renderPills(agents) {
       title: clampRole(agent.role) || `Escribirle a @${agent.name}`,
       onClick: () => {
         target = agent.name;
-        // Repintar pills sin destruir el textarea.
-        renderPills(agents);
+        // currentAgents, no agents: puede haber llegado un agente nuevo entre
+        // el render de estas pills y el momento del click.
+        renderPills(currentAgents);
         composerInput?.focus();
       },
     }, `@${agent.name}`));
