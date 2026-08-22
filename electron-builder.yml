@@ -1,7 +1,7 @@
 appId: com.yusepe.bento
 productName: YUSEPE Bento
 directories:
-  output: dist
+  output: release
   buildResources: build
 
 files:
