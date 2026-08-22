@@ -324,6 +324,9 @@ async function refresh() {
     renderComposer(agents);
   } catch (err) {
     streamEl.innerHTML = '';
+    // Sincronizar el estado con el DOM que acabamos de vaciar.
+    renderedIds = [];
+    renderedSig = null;
     streamEl.append(h('p', { class: 'text-xs text-red-400 px-1' }, err?.message || String(err)));
   }
 }
@@ -520,6 +523,15 @@ function renderStream(messages, agents) {
   // Ocurre si el archivo fue truncado o si una lectura parcial corrió los seq
   // (caso documentado en spec 023: la clave es id, no seq).
   if (kept.some((id, i) => id !== newIds[i])) {
+    rebuildStream(messages, colors);
+    if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
+    return;
+  }
+
+  // RED: el DOM difiere de renderedIds (por ejemplo, el catch de refresh()
+  // borró streamEl sin resetear el estado, o cualquier otro camino que toque
+  // streamEl sin avisar). Previene que el hilo se congele en el cartel de error.
+  if (streamEl.children.length !== renderedIds.length) {
     rebuildStream(messages, colors);
     if (atBottom) queueMicrotask(() => { streamEl.scrollTop = streamEl.scrollHeight; });
     return;
