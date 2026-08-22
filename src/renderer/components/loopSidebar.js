@@ -117,6 +117,15 @@ let isOpen = false;
 /** A quién le escribe el usuario. Se recuerda entre mensajes. */
 let target = null;
 
+/* Estado del compositor persistente (spec 022, ruta C).
+ * El textarea se crea una vez; sólo las pills se repintan en cada refresh. */
+let currentAgents = [];
+let composerBoxEl = null;
+let pillsContainerEl = null;
+let composerInput = null;
+let composerSendBtn = null;
+let composerNoAgentsEl = null;
+
 /* ---------- Modo del loop: un loop a la vez vs. simultáneos ---------- */
 
 const LOOP_MODE_KEY = 'yusepe:loop-mode';
@@ -258,6 +267,9 @@ function closeSidebar() {
 
 function buildChrome() {
   panelEl.innerHTML = '';
+  // Resetear estado persistente: el DOM fue destruido, hay que recrearlo.
+  currentAgents = []; composerBoxEl = null; pillsContainerEl = null;
+  composerInput = null; composerSendBtn = null; composerNoAgentsEl = null;
 
   const title = h('div', { class: 'text-xs text-fg-soft flex-1 flex items-center gap-1.5' }, [
     h('span', { class: 'text-accent-soft flex items-center' }, svgIcon('loop', { size: 14 })),
@@ -556,86 +568,51 @@ function formatTime(iso) {
 /* ---------- Composer ---------- */
 
 /**
- * Redibuja el composer conservando el foco y lo escrito.
+ * Crea una sola vez el textarea, el botón y sus listeners (spec 022, ruta C).
  *
- * `refresh()` corre sola cada vez que cambia algo en disco (otro agente
- * posteó), y sin esto el usuario perdería el cursor y el texto a medio
- * escribir en mitad de una frase.
+ * Al no destruir el textarea en cada refresh, el caret, el historial de
+ * deshacer y la composición IME sobreviven al poll de 1,5 s. `send()` lee
+ * `currentAgents` en el momento del envío — no captura el parámetro —, así
+ * un agente sumado después del primer render se reconoce en el atajo
+ * "@nombre texto" en vez de ir silenciosamente al destinatario equivocado.
  */
-function renderComposer(agents) {
-  const previous = composerEl.querySelector('textarea');
-  const draft = previous?.value || '';
-  const hadFocus = previous && document.activeElement === previous;
-  // Guardar la posición exacta del cursor para restaurarla tras el redibujado.
-  const selStart = previous?.selectionStart ?? draft.length;
-  const selEnd = previous?.selectionEnd ?? draft.length;
-  const scrollTop = previous?.scrollTop ?? 0;
+function ensureComposerBox() {
+  if (composerBoxEl) return;
 
-  composerEl.innerHTML = '';
+  pillsContainerEl = h('div', { class: 'flex flex-wrap gap-1 mb-1.5' });
 
-  if (!agents.length) {
-    composerEl.append(h('p', { class: 'text-[10px] text-fg-subtle px-1' },
-      'Sumá una terminal al loop para poder escribirle.'));
-    return;
-  }
-
-  // El destino sigue siendo válido sólo si ese agente sigue en el loop.
-  if (!agents.some((a) => a.name === target)) target = agents[0].name;
-
-  const pills = h('div', { class: 'flex flex-wrap gap-1 mb-1.5' },
-    agents.map((agent) => h('button', {
-      class: [
-        'text-[10px] px-1.5 py-0.5 rounded-full border transition',
-        agent.name === target
-          ? 'bg-accent/20 border-accent/40 text-fg'
-          : 'border-line hover:bg-bg-elev',
-      ].join(' '),
-      // Mismo color que sus burbujas, salvo cuando es el destino elegido:
-      // ahí manda el accent, que es lo que marca la selección.
-      style: agent.name === target
-        ? null
-        : `color: color-mix(in srgb, ${colorOf(agent)} 75%, var(--color-fg))`,
-      title: clampRole(agent.role) || `Escribirle a @${agent.name}`,
-      onClick: () => {
-        target = agent.name;
-        renderComposer(agents);
-        composerEl.querySelector('textarea')?.focus();
-      },
-    }, `@${agent.name}`)));
-
-  const input = h('textarea', {
+  composerInput = h('textarea', {
     rows: '2',
-    placeholder: `Mensaje para @${target}…  (Enter envía)`,
     class: 'w-full bg-bg-elev border border-line rounded-md px-2 py-1.5 text-xs resize-none '
       + 'focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-fg-subtle/70',
     spellcheck: 'false',
   });
 
   const send = async () => {
-    const raw = input.value.trim();
+    const raw = composerInput.value.trim();
     if (!raw) return;
 
-    // Un `@nombre` al principio manda sobre la pill elegida: escribir
-    // "@opencito revisá esto" es más rápido que cambiar de destino.
+    // Un `@nombre` al principio manda sobre la pill elegida.
     const match = raw.match(/^@([a-z0-9][a-z0-9_-]*)\s+([\s\S]+)$/i);
-    const to = match && agents.some((a) => a.name === match[1].toLowerCase())
+    // Lee currentAgents en el momento del envío, no el closure del primer render.
+    const to = match && currentAgents.some((a) => a.name === match[1].toLowerCase())
       ? match[1].toLowerCase()
       : target;
     const text = match && to === match[1].toLowerCase() ? match[2] : raw;
 
-    input.value = '';
-    input._reset?.();
+    composerInput.value = '';
+    composerInput._reset?.();
     try {
       await window.yusepe.loop.post(cwd(), { from: 'usuario', to, text });
       target = to;
       await refresh();
     } catch (err) {
-      input.value = raw; // no le comemos lo que escribió
+      composerInput.value = raw;
       toast.error(err?.message || String(err));
     }
   };
 
-  input.addEventListener('keydown', (e) => {
+  composerInput.addEventListener('keydown', (e) => {
     // Enter envía; Shift+Enter hace salto de línea (convención de chat).
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -643,63 +620,106 @@ function renderComposer(agents) {
     }
   });
 
-  const sendBtn = h('button', {
+  composerSendBtn = h('button', {
     class: 'mt-1.5 w-full flex items-center justify-center gap-1.5 text-xs px-2 py-1.5 rounded-md '
       + 'bg-accent hover:bg-accent-soft text-white transition',
     onClick: send,
-  }, [svgIcon('send', { size: 12 }), h('span', {}, `Enviar a @${target}`)]);
+  }, [svgIcon('send', { size: 12 }), h('span', {}, 'Enviar')]);
 
-  input.value = draft;
-  composerEl.append(pills, input, sendBtn);
+  composerBoxEl = h('div', {}, [pillsContainerEl, composerInput, composerSendBtn]);
+  composerEl.append(composerBoxEl);
 
-  // Auto-resize: parte del tamaño actual (rows="2") y crece con el contenido
-  // hasta que el compositor completo ocupe el 33% del panel. A partir de ahí
-  // el textarea muestra scrollbar interno en vez de seguir empujando el hilo.
-  queueMicrotask(() => {
-    // Alto natural con rows="2" y valor vacío = el mínimo que queremos mantener.
-    const savedVal = input.value;
-    input.value = '';
-    input.style.height = 'auto';
-    const minH = input.scrollHeight;
-    input.value = savedVal;
+  // Medir minH con el textarea vacío: es el estado legítimo al crear la caja.
+  // La maniobra value=''→medir→value=draft que causaba el bug desaparece aquí.
+  composerInput.style.height = 'auto';
+  const minH = composerInput.scrollHeight;
+  composerInput.style.height = `${minH}px`;
 
+  // maxH se calcula perezosamente en resize(): así es correcto ante cambios
+  // de alto de ventana, ancho del panel (las pills reenvuelven) y cantidad
+  // de agentes, sin necesitar un ResizeObserver.
+  const resize = () => {
+    const prevScroll = composerInput.scrollTop;
+    composerInput.style.height = 'auto';
+    const natural = composerInput.scrollHeight;
     const maxComposer = panelEl.offsetHeight * 0.33;
-    const fixed = pills.offsetHeight + sendBtn.offsetHeight + 20; // padding del compositor
+    const fixed = pillsContainerEl.offsetHeight + composerSendBtn.offsetHeight + 20;
     const maxH = Math.max(minH, maxComposer - fixed);
+    const next = Math.min(Math.max(natural, minH), maxH);
+    composerInput.style.height = `${next}px`;
+    composerInput.style.overflowY = natural > maxH ? 'auto' : 'hidden';
+    if (natural > maxH) composerInput.scrollTop = prevScroll;
+  };
 
-    const resize = () => {
-      // Guardar el scroll antes de height='auto': al colapsar el overflow
-      // el navegador fuerza scrollTop=0; sin esto cada pulsación jumpa al inicio.
-      const prevScroll = input.scrollTop;
-      input.style.height = 'auto';
-      const natural = input.scrollHeight;
-      const next = Math.min(Math.max(natural, minH), maxH);
-      input.style.height = `${next}px`;
-      input.style.overflowY = natural > maxH ? 'auto' : 'hidden';
-      if (natural > maxH) input.scrollTop = prevScroll;
-    };
+  composerInput.addEventListener('input', resize);
 
-    input.addEventListener('input', resize);
+  composerInput._reset = () => {
+    composerInput.style.height = `${minH}px`;
+    composerInput.style.overflowY = 'hidden';
+  };
+}
 
-    // Restaura el alto correcto si había un draft en curso.
-    resize();
+/**
+ * Repinta sólo las pills y actualiza placeholder y etiqueta del botón.
+ * El textarea no se toca: el caret, el borrador y el historial sobreviven.
+ */
+function renderPills(agents) {
+  currentAgents = agents;
 
-    // Usado por send() para volver al tamaño mínimo al enviar.
-    input._reset = () => {
-      input.style.height = `${minH}px`;
-      input.style.overflowY = 'hidden';
-    };
+  // Re-targetear si el destino ya no está en el loop.
+  if (!agents.some((a) => a.name === target)) target = agents[0]?.name || null;
 
-    // Restaurar scroll DESPUÉS de que resize() fije overflow-y:auto.
-    // La secuencia value='' / value=savedVal de arriba ya reseteó scrollTop a 0;
-    // cualquier restauración anterior al microtask queda anulada por eso.
-    if (draft) input.scrollTop = scrollTop;
-  });
-
-  if (hadFocus) {
-    input.focus();
-    input.setSelectionRange(selStart, selEnd);
+  pillsContainerEl.innerHTML = '';
+  for (const agent of agents) {
+    pillsContainerEl.append(h('button', {
+      class: [
+        'text-[10px] px-1.5 py-0.5 rounded-full border transition',
+        agent.name === target
+          ? 'bg-accent/20 border-accent/40 text-fg'
+          : 'border-line hover:bg-bg-elev',
+      ].join(' '),
+      style: agent.name === target
+        ? null
+        : `color: color-mix(in srgb, ${colorOf(agent)} 75%, var(--color-fg))`,
+      title: clampRole(agent.role) || `Escribirle a @${agent.name}`,
+      onClick: () => {
+        target = agent.name;
+        // Repintar pills sin destruir el textarea.
+        renderPills(agents);
+        composerInput?.focus();
+      },
+    }, `@${agent.name}`));
   }
+
+  if (composerInput) {
+    composerInput.placeholder = `Mensaje para @${target}…  (Enter envía)`;
+  }
+  if (composerSendBtn) {
+    const span = composerSendBtn.querySelector('span');
+    if (span) span.textContent = `Enviar a @${target}`;
+  }
+}
+
+function renderComposer(agents) {
+  if (!agents.length) {
+    // Ocultar la caja (no destruirla: el borrador sobrevive).
+    if (composerBoxEl) composerBoxEl.classList.add('hidden');
+    if (!composerNoAgentsEl) {
+      composerNoAgentsEl = h('p', { class: 'text-[10px] text-fg-subtle px-1' },
+        'Sumá una terminal al loop para poder escribirle.');
+      composerEl.prepend(composerNoAgentsEl);
+    } else {
+      composerNoAgentsEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  // Ocultar el mensaje orientativo si estaba visible.
+  if (composerNoAgentsEl) composerNoAgentsEl.classList.add('hidden');
+
+  ensureComposerBox();
+  composerBoxEl.classList.remove('hidden');
+  renderPills(agents);
 }
 
 /* ---------- Alta y edición de agentes ---------- */
